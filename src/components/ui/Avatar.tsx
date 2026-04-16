@@ -11,7 +11,8 @@ const AVATAR_COLORS = [
   "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
 ];
 
-function getAvatarColor(name: string): string {
+function getAvatarColor(name: string | null | undefined): string {
+  if (!name) return AVATAR_COLORS[0]; // Default color if name is null/undefined
   const index =
     name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
     AVATAR_COLORS.length;
@@ -19,7 +20,7 @@ function getAvatarColor(name: string): string {
 }
 
 interface AvatarProps {
-  name: string;
+  name?: string | null;
   size?: "xs" | "sm" | "md" | "lg";
   className?: string;
   src?: string;
@@ -33,12 +34,14 @@ const sizeClasses = {
 };
 
 export function Avatar({ name, size = "sm", className, src }: AvatarProps) {
+  const displayName = name || "Unknown";
+
   if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
-        alt={name}
+        alt={displayName}
         className={cn(
           sizeClasses[size],
           "rounded-full object-cover shrink-0",
@@ -56,9 +59,9 @@ export function Avatar({ name, size = "sm", className, src }: AvatarProps) {
         getAvatarColor(name),
         className
       )}
-      title={name}
+      title={displayName}
     >
-      {getInitials(name)}
+      {getInitials(displayName)}
     </div>
   );
 }

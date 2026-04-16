@@ -14,7 +14,16 @@ export const partnersApi = {
     const response = await apiClient.get<
       ApiResponse<PaginatedResponse<Partner>>
     >("/admin/partners", { params: filters });
-    return response.data.data;
+    
+    // Backend returns: { success, message, data: [], pagination: {...} }
+    // Component expects: { items: [], pagination: {...} }
+    const partnerRecords = response.data.data;
+    const pagination = response.data.pagination;
+
+    return {
+      items: partnerRecords || [],
+      pagination,
+    };
   },
 
   getById: async (id: string): Promise<Partner> => {
@@ -64,8 +73,28 @@ export const partnersApi = {
 
   getKycQueue: async (params = {}) => {
     try {
-      const response = await apiClient.get("/admin/kyc/queue", { params });
-      return response.data.data;
+      const response = await apiClient.get("/admin/kyc", { params });
+      
+      // Backend returns: { success, message, data: [], pagination: {} }
+      const kycRecords = response.data.data; // The array of KYC records
+      const pagination = response.data.pagination;
+
+      // Map backend response to component format
+      const mappedItems = (kycRecords || []).map((kycRecord: any) => ({
+        userId: kycRecord.user?.id,
+        userName: kycRecord.user?.name,
+        mobile: kycRecord.user?.mobile,
+        subType: kycRecord.user?.partnerProfile?.subType,
+        kycStatus: kycRecord.status,
+        submittedAt: kycRecord.submittedAt,
+        aadhaarNumber: kycRecord.aadhaarNumber,
+        id: kycRecord.id, // Keep original ID for reference
+      }));
+
+      return {
+        items: mappedItems,
+        pagination,
+      };
     } catch (err: unknown) {
       // 404 means the endpoint isn't implemented on the backend yet —
       // return empty pagination so the UI shows an empty state gracefully.

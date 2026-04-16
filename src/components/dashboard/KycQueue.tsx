@@ -22,9 +22,9 @@ export function KycQueue() {
             KYC Approval Queue
           </h3>
         </div>
-        {data?.pagination.total !== undefined && data.pagination.total > 0 && (
+        {data?.pagination?.total !== undefined && data?.pagination?.total > 0 && (
           <span className="badge bg-brand-orange-muted dark:bg-brand-orange-muted text-brand-orange text-[11px]">
-            {data.pagination.total} Pending
+            {data.pagination?.total} Pending
           </span>
         )}
       </div>
