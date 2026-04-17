@@ -33,7 +33,8 @@ export type UserStatus =
   | "BLOCKED";
 
 export type KycStatus =
+  | "NOT_SUBMITTED"
+  | "IN_PROGRESS"
   | "PENDING"
   | "APPROVED"
-  | "REJECTED"
-  | "IN_REVIEW";
+  | "REJECTED";

@@ -1,11 +1,6 @@
 export type BookingStatus = "OPEN" | "BOOKED" | "EXPIRED" | "CANCELLED";
-export type VehicleType =
-  | "SEDAN"
-  | "SUV"
-  | "HATCHBACK"
-  | "TEMPO_TRAVELLER"
-  | "BUS"
-  | "LUXURY";
+export type TripType = "ONE_WAY" | "ROUND_TRIP" | "LOCAL_RENTAL" | "AIRPORT_TRANSFER";
+export type FuelType = "PETROL" | "DIESEL" | "CNG";
 
 export interface Booking {
   id: string;
@@ -14,14 +9,18 @@ export interface Booking {
   dropCity: string;
   date: string;
   time: string;
-  vehicleType: VehicleType;
-  originalFare: number | null;
+  vehicleType: string;        // free text — no longer an enum
+  vehicleName: string | null;
+  tripType: TripType | null;
+  fuelType: FuelType | null;
+  hasCarrier: boolean;
   postedAmount: number;
-  customerName: string | null;
-  customerMobile: string | null;
-  coinsAwarded: boolean;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
+  bookedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
   postedBy: {
     id: string;
     name: string;
@@ -40,8 +39,9 @@ export interface BookingListFilters {
   page?: number;
   limit?: number;
   status?: BookingStatus;
-  city?: string;
-  vehicleType?: VehicleType;
+  pickupCityId?: string;
+  dropCityId?: string;
+  vehicleType?: string;
   dateFrom?: string;
   dateTo?: string;
 }

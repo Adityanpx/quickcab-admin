@@ -6,8 +6,6 @@ import {
   Calendar,
   Clock,
   Car,
-  User,
-  Phone,
   IndianRupee,
   ArrowRight,
 } from "lucide-react";
@@ -124,28 +122,32 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
               label="Posted Fare"
               value={formatCurrency(booking.postedAmount)}
             />
-            {booking.originalFare && (
+            {booking.tripType && (
               <InfoRow
-                icon={<IndianRupee size={14} />}
-                label="Original Customer Fare"
-                value={formatCurrency(booking.originalFare)}
+                icon={<ArrowRight size={14} />}
+                label="Trip Type"
+                value={booking.tripType.replace(/_/g, " ")}
+              />
+            )}
+            {booking.fuelType && (
+              <InfoRow
+                icon={<Car size={14} />}
+                label="Fuel Type"
+                value={booking.fuelType}
               />
             )}
             <InfoRow
-              icon={<MapPin size={14} />}
-              label="Coins Awarded"
-              value={
-                booking.coinsAwarded ? (
-                  <span className="text-brand-green text-[13px] font-medium">
-                    ✓ Coins credited to Partner A
-                  </span>
-                ) : (
-                  <span className="text-light-text-3 dark:text-dark-text-3 text-[13px]">
-                    Not yet awarded
-                  </span>
-                )
-              }
+              icon={<Car size={14} />}
+              label="Roof Carrier"
+              value={booking.hasCarrier ? "Yes — carrier fitted" : "No carrier"}
             />
+            {booking.vehicleName && (
+              <InfoRow
+                icon={<Car size={14} />}
+                label="Vehicle Name"
+                value={booking.vehicleName}
+              />
+            )}
             <InfoRow
               icon={<Clock size={14} />}
               label="Booking ID"
@@ -160,35 +162,6 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
           </div>
         </div>
 
-        {/* Customer info (if present) */}
-        {booking.customerName && (
-          <div className="card">
-            <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text mb-4">
-              Customer Details
-            </h3>
-            <div className="space-y-0">
-              <InfoRow
-                icon={<User size={14} />}
-                label="Customer Name"
-                value={booking.customerName}
-              />
-              {booking.customerMobile && (
-                <InfoRow
-                  icon={<Phone size={14} />}
-                  label="Customer Mobile"
-                  value={
-                    <a
-                      href={`tel:${booking.customerMobile}`}
-                      className="text-brand-purple hover:underline"
-                    >
-                      {booking.customerMobile}
-                    </a>
-                  }
-                />
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Right: Partners + Timeline ─────────── */}

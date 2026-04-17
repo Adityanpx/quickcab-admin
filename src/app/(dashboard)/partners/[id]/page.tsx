@@ -15,14 +15,17 @@ import {
   ShieldBan,
   ShieldCheck,
   Copy,
+  RefreshCw,
 } from "lucide-react";
 import {
   usePartner,
   useSuspendPartner,
   useApproveKyc,
   useRejectKyc,
+  useReviewDocument,
 } from "@/lib/hooks/usePartners";
 import { partnersApi } from "@/lib/api/partners";
+import type { KycRejectPayload } from "@/lib/api/partners";
 import { KycDocViewer, KycActionBar } from "@/components/partners/KycDocViewer";
 import { SuspendModal } from "@/components/partners/SuspendModal";
 import { BlockModal } from "@/components/partners/BlockModal";
@@ -69,6 +72,7 @@ export default function PartnerDetailPage() {
   const suspendMutation = useSuspendPartner();
   const approveKycMutation = useApproveKyc();
   const rejectKycMutation = useRejectKyc();
+  const reviewDocMutation = useReviewDocument();
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError || !partner) {
@@ -82,12 +86,61 @@ export default function PartnerDetailPage() {
     );
   }
 
-  const kycDocs = [
-    { label: "Aadhaar Front", url: partner.kycRecord?.aadhaarFront ?? null },
-    { label: "Aadhaar Back", url: partner.kycRecord?.aadhaarBack ?? null },
-    { label: "Driving License", url: partner.kycRecord?.drivingLicenseUrl ?? null },
-    { label: "Selfie", url: partner.kycRecord?.selfieUrl ?? null },
-  ];
+  const kycRecord = partner.kycRecord;
+  const resubmittedSet = new Set(kycRecord?.resubmittedDocuments ?? []);
+
+  const kycDocs = kycRecord
+    ? [
+        {
+          label: "Aadhaar Front",
+          fieldKey: "aadhaarFront",
+          url: kycRecord.aadhaarFrontUrl ?? null,
+          status: kycRecord.aadhaarFrontStatus ?? "PENDING",
+          rejectReason: kycRecord.aadhaarRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("aadhaarFront"),
+        },
+        {
+          label: "Aadhaar Back",
+          fieldKey: "aadhaarBack",
+          url: kycRecord.aadhaarBackUrl ?? null,
+          status: kycRecord.aadhaarBackStatus ?? "PENDING",
+          rejectReason: kycRecord.aadhaarRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("aadhaarBack"),
+        },
+        ...(kycRecord.drivingLicenceUrl
+          ? [
+              {
+                label: "Driving Licence",
+                fieldKey: "drivingLicence",
+                url: kycRecord.drivingLicenceUrl,
+                status: kycRecord.drivingLicenceStatus ?? "PENDING",
+                rejectReason: kycRecord.drivingLicenceRejectReason ?? null,
+                isResubmitted: resubmittedSet.has("drivingLicence"),
+              },
+            ]
+          : []),
+        {
+          label: "Selfie",
+          fieldKey: "selfie",
+          url: kycRecord.selfieUrl ?? null,
+          status: kycRecord.selfieStatus ?? "PENDING",
+          rejectReason: kycRecord.selfieRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("selfie"),
+        },
+        ...(kycRecord.businessDocUrl
+          ? [
+              {
+                label: "Business Document",
+                fieldKey: "businessDoc",
+                url: kycRecord.businessDocUrl,
+                status: kycRecord.businessDocStatus ?? "PENDING",
+                rejectReason: kycRecord.businessDocRejectReason ?? null,
+                isResubmitted: resubmittedSet.has("businessDoc"),
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   const handleSuspend = async (data: SuspendPartnerPayload) => {
     await suspendMutation.mutateAsync({ id: partner.id, payload: data });
@@ -121,9 +174,39 @@ export default function PartnerDetailPage() {
 
   const handleRejectKyc = async () => {
     if (!rejectNote.trim()) return;
-    await rejectKycMutation.mutateAsync({ userId: partner.id, note: rejectNote });
+    const payload: KycRejectPayload = {
+      adminNote: rejectNote,
+      aadhaarFrontStatus: "REJECTED",
+      aadhaarFrontRejectReason: rejectNote,
+      aadhaarBackStatus: "REJECTED",
+      aadhaarBackRejectReason: rejectNote,
+      drivingLicenceStatus: partner.kycRecord?.drivingLicenceUrl ? "REJECTED" : undefined,
+      drivingLicenceRejectReason: partner.kycRecord?.drivingLicenceUrl ? rejectNote : undefined,
+      selfieStatus: "REJECTED",
+      selfieRejectReason: rejectNote,
+      businessDocStatus: partner.kycRecord?.businessDocUrl ? "REJECTED" : undefined,
+      businessDocRejectReason: partner.kycRecord?.businessDocUrl ? rejectNote : undefined,
+    };
+    await rejectKycMutation.mutateAsync({ userId: partner.id, payload });
     setRejectNoteOpen(false);
     setRejectNote("");
+  };
+
+  const handleApproveDoc = async (fieldKey: string) => {
+    await reviewDocMutation.mutateAsync({
+      userId: partner.id,
+      document: fieldKey,
+      status: "APPROVED",
+    });
+  };
+
+  const handleRejectDoc = async (fieldKey: string, reason: string) => {
+    await reviewDocMutation.mutateAsync({
+      userId: partner.id,
+      document: fieldKey,
+      status: "REJECTED",
+      rejectReason: reason,
+    });
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -373,41 +456,41 @@ export default function PartnerDetailPage() {
                   <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text">
                     KYC Status
                   </h3>
-                  {partner.kycRecord && (
-                    <StatusBadge status={partner.kycRecord.status} />
+                  {kycRecord && (
+                    <StatusBadge status={kycRecord.status} />
                   )}
                 </div>
-                {partner.kycRecord ? (
+                {kycRecord ? (
                   <div className="space-y-2">
-                    {partner.kycRecord.aadhaarNumber && (
+                    {kycRecord.aadhaarNumber && (
                       <div className="flex justify-between text-[13px]">
                         <span className="text-light-text-2 dark:text-dark-text-2">Aadhaar</span>
                         <span className="font-mono text-light-text dark:text-dark-text">
-                          XXXX XXXX {partner.kycRecord.aadhaarNumber.slice(-4)}
+                          XXXX XXXX {kycRecord.aadhaarNumber.slice(-4)}
                         </span>
                       </div>
                     )}
-                    {partner.kycRecord.submittedAt && (
+                    {kycRecord.submittedAt && (
                       <div className="flex justify-between text-[13px]">
                         <span className="text-light-text-2 dark:text-dark-text-2">Submitted</span>
                         <span className="text-light-text dark:text-dark-text">
-                          {formatDate(partner.kycRecord.submittedAt)}
+                          {formatDate(kycRecord.submittedAt)}
                         </span>
                       </div>
                     )}
-                    {partner.kycRecord.adminNote && (
+                    {kycRecord.adminNote && (
                       <div className="pt-2 mt-2 border-t border-light-border dark:border-dark-border">
                         <p className="text-[12px] text-light-text-2 dark:text-dark-text-2">
                           Admin note:
                         </p>
                         <p className="text-[13px] text-light-text dark:text-dark-text mt-1">
-                          {partner.kycRecord.adminNote}
+                          {kycRecord.adminNote}
                         </p>
                       </div>
                     )}
                     <div className="pt-3">
                       <KycActionBar
-                        kycStatus={partner.kycRecord.status}
+                        kycStatus={kycRecord.status}
                         onApprove={handleApproveKyc}
                         onReject={() => setRejectNoteOpen(true)}
                         loading={approveKycMutation.isPending || rejectKycMutation.isPending}
@@ -446,20 +529,45 @@ export default function PartnerDetailPage() {
           {/* ── KYC Tab ───────────────────────────────── */}
           {activeTab === "kyc" && (
             <div className="space-y-4">
-              {partner.kycRecord ? (
+              {kycRecord ? (
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-[13px] text-light-text-2 dark:text-dark-text-2">
                       Review all uploaded documents below
                     </p>
                     <KycActionBar
-                      kycStatus={partner.kycRecord.status}
+                      kycStatus={kycRecord.status}
                       onApprove={handleApproveKyc}
                       onReject={() => setRejectNoteOpen(true)}
                       loading={approveKycMutation.isPending || rejectKycMutation.isPending}
                     />
                   </div>
-                  <KycDocViewer docs={kycDocs} />
+
+                  {/* Resubmission notice */}
+                  {(kycRecord.resubmittedDocuments?.length ?? 0) > 0 && (
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-brand-purple-muted dark:bg-brand-purple-muted-dark border border-brand-purple/20">
+                      <RefreshCw size={16} className="text-brand-purple mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[13px] font-semibold text-brand-purple">
+                          Partner resubmitted documents
+                        </p>
+                        <p className="text-[12px] text-light-text-2 dark:text-dark-text-2 mt-0.5">
+                          Re-uploaded:{" "}
+                          {kycRecord.resubmittedDocuments!.join(", ")} · Resubmitted{" "}
+                          {kycRecord.resubmittedAt
+                            ? formatRelative(kycRecord.resubmittedAt)
+                            : "recently"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <KycDocViewer
+                    docs={kycDocs}
+                    onApproveDoc={handleApproveDoc}
+                    onRejectDoc={handleRejectDoc}
+                    loading={reviewDocMutation.isPending}
+                  />
                 </>
               ) : (
                 <div className="card text-center py-12">

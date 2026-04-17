@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { partnersApi } from "@/lib/api/partners";
+import type { KycRejectPayload } from "@/lib/api/partners";
 import type { PartnerListFilters, SuspendPartnerPayload } from "@/types/partner";
 import toast from "react-hot-toast";
 
@@ -57,12 +58,47 @@ export function useApproveKyc() {
 export function useRejectKyc() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, note }: { userId: string; note: string }) =>
-      partnersApi.rejectKyc(userId, note),
+    mutationFn: ({
+      userId,
+      payload,
+    }: {
+      userId: string;
+      payload: KycRejectPayload;
+    }) => partnersApi.rejectKyc(userId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["kyc"] });
-      toast.success("KYC rejected");
+      qc.invalidateQueries({ queryKey: ["partners"] });
+      toast.success("KYC rejected — partner notified");
     },
-    onError: () => toast.error("Failed to reject KYC"),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? "Failed to reject KYC";
+      toast.error(msg);
+    },
+  });
+}
+
+export function useReviewDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      document,
+      status,
+      rejectReason,
+    }: {
+      userId: string;
+      document: string;
+      status: "APPROVED" | "REJECTED";
+      rejectReason?: string;
+    }) => partnersApi.reviewDocument(userId, document, status, rejectReason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["kyc"] });
+      qc.invalidateQueries({ queryKey: ["partners"] });
+      toast.success("Document reviewed");
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? "Failed to review document";
+      toast.error(msg);
+    },
   });
 }

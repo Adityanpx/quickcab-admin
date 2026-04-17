@@ -45,7 +45,7 @@ export function StatCards({ stats }: StatCardsProps) {
       <StatCard
         index={3}
         label="Pending Payouts"
-        value={formatCurrency(stats.wallet.pendingAmount)}
+        value={formatCurrency(stats.wallet.pendingWithdrawalAmount)}
         subtext={`${stats.wallet.pendingWithdrawals} requests pending`}
         trend="neutral"
         icon={<Wallet size={16} />}

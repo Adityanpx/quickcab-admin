@@ -167,11 +167,6 @@ export function BookingTable({
                     <p className="text-[13px] font-semibold text-light-text dark:text-dark-text">
                       {formatCurrency(booking.postedAmount)}
                     </p>
-                    {booking.originalFare && (
-                      <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
-                        Orig: {formatCurrency(booking.originalFare)}
-                      </p>
-                    )}
                   </td>
 
                   {/* Status */}
@@ -187,7 +182,7 @@ export function BookingTable({
                           View
                         </Button>
                       </Link>
-                      {(booking.status === "OPEN" || booking.status === "BOOKED") ? (
+                      {booking.status === "OPEN" ? (
                         <Button
                           variant="danger"
                           size="xs"

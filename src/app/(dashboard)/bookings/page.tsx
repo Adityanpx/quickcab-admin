@@ -39,7 +39,7 @@ export default function BookingsPage() {
     page,
     limit: 15,
     status: (status as Booking["status"]) || undefined,
-    vehicleType: (vehicleType as Booking["vehicleType"]) || undefined,
+    vehicleType: vehicleType || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
   });
@@ -80,17 +80,17 @@ export default function BookingsPage() {
     try {
       const allData = await bookingsApi.getAll({
         status: (status as Booking["status"]) || undefined,
-        vehicleType: (vehicleType as Booking["vehicleType"]) || undefined,
+        vehicleType: vehicleType || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         limit: 1000,
       });
       const header = [
-        "ID", "Pickup", "Drop", "Date", "Time", "Vehicle",
-        "Posted Fare", "Original Fare", "Status",
+        "ID", "Pickup", "Drop", "Date", "Time",
+        "Vehicle Type", "Vehicle Name", "Trip Type", "Fuel", "Carrier",
+        "Posted Fare", "Status",
         "Partner A", "Partner A Mobile",
         "Partner B", "Partner B Mobile",
-        "Customer", "Customer Mobile",
       ];
       const rows = allData.items.map((b) => [
         b.id,
@@ -99,15 +99,16 @@ export default function BookingsPage() {
         b.date,
         b.time,
         b.vehicleType,
+        b.vehicleName ?? "",
+        b.tripType ?? "",
+        b.fuelType ?? "",
+        b.hasCarrier ? "Yes" : "No",
         b.postedAmount,
-        b.originalFare ?? "",
         b.status,
         b.postedBy?.name ?? "",
         b.postedBy?.mobile ?? "",
         b.acceptedBy?.name ?? "",
         b.acceptedBy?.mobile ?? "",
-        b.customerName ?? "",
-        b.customerMobile ?? "",
       ]);
       const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });

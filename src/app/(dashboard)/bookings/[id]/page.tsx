@@ -53,7 +53,7 @@ export default function BookingDetailPage() {
     }
   };
 
-  const canCancel = booking.status === "OPEN" || booking.status === "BOOKED";
+  const canCancel = booking.status === "OPEN";
 
   return (
     <div className="space-y-6 max-w-[1400px]">

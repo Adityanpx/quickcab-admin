@@ -34,17 +34,32 @@ export const walletApi = {
   },
 
   manualAdjust: async (payload: ManualAdjustPayload) => {
+    const { userId, ...body } = payload;
     const response = await apiClient.post(
-      "/admin/wallet/adjust",
-      payload
+      `/admin/wallet/${userId}/adjust`,
+      body
     );
     return response.data;
   },
 
   getStats: async (): Promise<WalletStats> => {
-    const response = await apiClient.get<ApiResponse<WalletStats>>(
-      "/admin/wallet/stats"
-    );
-    return response.data.data;
+    try {
+      const response = await apiClient.get<ApiResponse<WalletStats>>(
+        "/admin/wallet/stats"
+      );
+      return response.data.data;
+    } catch (error: any) {
+      // 404 = endpoint not yet implemented on backend
+      // Return zeros so WalletStats renders gracefully instead of crashing
+      if (error?.response?.status === 404) {
+        return {
+          totalCoinsInCirculation: 0,
+          totalWithdrawnINR: 0,
+          pendingWithdrawalCount: 0,
+          pendingWithdrawalAmount: 0,
+        };
+      }
+      throw error;
+    }
   },
 };

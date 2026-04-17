@@ -119,13 +119,13 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ── Cached At ───────────────────────────────── */}
-      {stats.cachedAt && (
+      {stats.generatedAt && (
         <motion.p
           variants={sectionVariants}
           className="text-[11px] text-light-text-3 dark:text-dark-text-3 text-right"
         >
           Stats cached · Last updated{" "}
-          {new Date(stats.cachedAt).toLocaleTimeString("en-IN", {
+          {new Date(stats.generatedAt).toLocaleTimeString("en-IN", {
             hour: "2-digit",
             minute: "2-digit",
           })}

@@ -16,13 +16,17 @@ export interface DashboardStats {
     total: number;
     open: number;
     booked: number;
+    expired: number;
+    cancelled: number;
   };
   wallet: {
     pendingWithdrawals: number;
-    pendingAmount: number;
-    totalPaidOut: number;
+    pendingWithdrawalAmount: number;
   };
-  cachedAt: string;
+  ratings: {
+    flagged: number;
+  };
+  generatedAt: string;
 }
 
 export const dashboardApi = {

@@ -7,6 +7,20 @@ import type {
   RoleUpgradeRequest,
 } from "@/types/partner";
 
+export interface KycRejectPayload {
+  adminNote?: string;
+  aadhaarFrontStatus?: "APPROVED" | "REJECTED";
+  aadhaarFrontRejectReason?: string;
+  aadhaarBackStatus?: "APPROVED" | "REJECTED";
+  aadhaarBackRejectReason?: string;
+  drivingLicenceStatus?: "APPROVED" | "REJECTED";
+  drivingLicenceRejectReason?: string;
+  selfieStatus?: "APPROVED" | "REJECTED";
+  selfieRejectReason?: string;
+  businessDocStatus?: "APPROVED" | "REJECTED";
+  businessDocRejectReason?: string;
+}
+
 export const partnersApi = {
   getAll: async (
     filters: PartnerListFilters = {}
@@ -63,10 +77,23 @@ export const partnersApi = {
     return response.data;
   },
 
-  rejectKyc: async (userId: string, note: string) => {
+  rejectKyc: async (userId: string, payload: KycRejectPayload) => {
     const response = await apiClient.post(
       `/admin/kyc/${userId}/reject`,
-      { note }
+      payload
+    );
+    return response.data;
+  },
+
+  reviewDocument: async (
+    userId: string,
+    document: string,
+    status: "APPROVED" | "REJECTED",
+    rejectReason?: string
+  ) => {
+    const response = await apiClient.post(
+      `/admin/kyc/${userId}/document`,
+      { document, status, rejectReason }
     );
     return response.data;
   },

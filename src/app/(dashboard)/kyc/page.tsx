@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { FileCheck, CheckCircle, XCircle, Clock, Eye } from "lucide-react";
 import Link from "next/link";
 import { useKycQueue, useApproveKyc, useRejectKyc } from "@/lib/hooks/usePartners";
+import type { KycRejectPayload } from "@/lib/api/partners";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge, StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -71,9 +72,20 @@ export default function KycQueuePage() {
 
   const handleRejectConfirm = async () => {
     if (!rejectTarget || !rejectNote.trim()) return;
+    const payload: KycRejectPayload = {
+      adminNote: rejectNote,
+      aadhaarFrontStatus: "REJECTED",
+      aadhaarFrontRejectReason: rejectNote,
+      aadhaarBackStatus: "REJECTED",
+      aadhaarBackRejectReason: rejectNote,
+      drivingLicenceStatus: "REJECTED",
+      drivingLicenceRejectReason: rejectNote,
+      selfieStatus: "REJECTED",
+      selfieRejectReason: rejectNote,
+    };
     await rejectKycMutation.mutateAsync({
       userId: rejectTarget.userId,
-      note: rejectNote,
+      payload,
     });
     setRejectTarget(null);
     setRejectNote("");
@@ -339,7 +351,7 @@ export default function KycQueuePage() {
             rows={4}
             value={rejectNote}
             onChange={(e) => setRejectNote(e.target.value)}
-            placeholder="e.g. Aadhaar image is blurry, please re-upload a clearer photo..."
+            placeholder="e.g. Aadhaar image is blurry. Please upload a clearer photo of all documents."
             className="input-base resize-none"
           />
         </div>
