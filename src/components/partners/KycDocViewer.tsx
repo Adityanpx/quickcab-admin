@@ -154,7 +154,7 @@ function DocCard({
       {/* Per-document action buttons */}
       {(onApprove || onReject) && doc.status !== "APPROVED" && (
         <div className="px-3 pb-3 flex gap-2">
-          {doc.status !== "APPROVED" && onApprove && (
+          {onApprove && (
             <button
               onClick={() => onApprove(doc.fieldKey)}
               disabled={loading}
@@ -370,7 +370,7 @@ export function KycActionBar({
         )}
       >
         <XCircle size={14} />
-        Reject All
+        Reject KYC (all pending docs)
       </button>
       <button
         onClick={onApprove}
@@ -382,7 +382,7 @@ export function KycActionBar({
         )}
       >
         <CheckCircle size={14} />
-        Approve All
+        Approve KYC
       </button>
     </div>
   );

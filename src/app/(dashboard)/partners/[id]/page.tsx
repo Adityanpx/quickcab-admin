@@ -142,6 +142,10 @@ export default function PartnerDetailPage() {
       ]
     : [];
 
+  const hasApprovedDoc = kycDocs.some((d) => d.url && d.status === "APPROVED");
+  const hasPendingDoc = kycDocs.some((d) => d.url && d.status === "PENDING");
+  const showMixedStatusHint = hasApprovedDoc && hasPendingDoc;
+
   const handleSuspend = async (data: SuspendPartnerPayload) => {
     await suspendMutation.mutateAsync({ id: partner.id, payload: data });
     setShowSuspend(false);
@@ -198,6 +202,33 @@ export default function PartnerDetailPage() {
       document: fieldKey,
       status: "APPROVED",
     });
+
+    // Fetch fresh data to check if all existing docs are now APPROVED
+    const freshPartner = await qc.fetchQuery({
+      queryKey: ["partners", partnerId],
+      queryFn: () => partnersApi.getById(partnerId),
+      staleTime: 0,
+    });
+    const freshKyc = freshPartner?.kycRecord;
+    if (!freshKyc) return;
+
+    const allApproved =
+      freshKyc.aadhaarFrontStatus === "APPROVED" &&
+      freshKyc.aadhaarBackStatus === "APPROVED" &&
+      freshKyc.selfieStatus === "APPROVED" &&
+      (!freshKyc.drivingLicenceUrl || freshKyc.drivingLicenceStatus === "APPROVED") &&
+      (!freshKyc.businessDocUrl || freshKyc.businessDocStatus === "APPROVED");
+
+    const anyRejected =
+      freshKyc.aadhaarFrontStatus === "REJECTED" ||
+      freshKyc.aadhaarBackStatus === "REJECTED" ||
+      freshKyc.selfieStatus === "REJECTED" ||
+      (!!freshKyc.drivingLicenceUrl && freshKyc.drivingLicenceStatus === "REJECTED") ||
+      (!!freshKyc.businessDocUrl && freshKyc.businessDocStatus === "REJECTED");
+
+    if (allApproved && !anyRejected) {
+      await approveKycMutation.mutateAsync({ userId: partner.id, note: "All documents verified" });
+    }
   };
 
   const handleRejectDoc = async (fieldKey: string, reason: string) => {
@@ -207,6 +238,47 @@ export default function PartnerDetailPage() {
       status: "REJECTED",
       rejectReason: reason,
     });
+
+    // Build KycRejectPayload: preserve existing APPROVED/REJECTED statuses,
+    // override the just-rejected doc, omit PENDING docs (undefined = no change)
+    const kyc = partner.kycRecord!;
+
+    const resolveStatus = (
+      key: string,
+      current: "PENDING" | "APPROVED" | "REJECTED"
+    ): "APPROVED" | "REJECTED" | undefined => {
+      if (key === fieldKey) return "REJECTED";
+      if (current === "APPROVED" || current === "REJECTED") return current;
+      return undefined;
+    };
+
+    const resolveReason = (
+      key: string,
+      existingReason: string | null
+    ): string | undefined => {
+      if (key === fieldKey) return reason;
+      return existingReason ?? undefined;
+    };
+
+    const payload: KycRejectPayload = {
+      adminNote: `Document rejected: ${fieldKey}`,
+      aadhaarFrontStatus: resolveStatus("aadhaarFront", kyc.aadhaarFrontStatus),
+      aadhaarFrontRejectReason: resolveReason("aadhaarFront", kyc.aadhaarRejectReason),
+      aadhaarBackStatus: resolveStatus("aadhaarBack", kyc.aadhaarBackStatus),
+      aadhaarBackRejectReason: resolveReason("aadhaarBack", kyc.aadhaarRejectReason),
+      selfieStatus: resolveStatus("selfie", kyc.selfieStatus),
+      selfieRejectReason: resolveReason("selfie", kyc.selfieRejectReason),
+      ...(kyc.drivingLicenceUrl && {
+        drivingLicenceStatus: resolveStatus("drivingLicence", kyc.drivingLicenceStatus),
+        drivingLicenceRejectReason: resolveReason("drivingLicence", kyc.drivingLicenceRejectReason),
+      }),
+      ...(kyc.businessDocUrl && {
+        businessDocStatus: resolveStatus("businessDoc", kyc.businessDocStatus),
+        businessDocRejectReason: resolveReason("businessDoc", kyc.businessDocRejectReason),
+      }),
+    };
+
+    await rejectKycMutation.mutateAsync({ userId: partner.id, payload });
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -495,6 +567,11 @@ export default function PartnerDetailPage() {
                         onReject={() => setRejectNoteOpen(true)}
                         loading={approveKycMutation.isPending || rejectKycMutation.isPending}
                       />
+                      {showMixedStatusHint && kycRecord.status === "PENDING" && (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1.5">
+                          Review remaining documents or finalize decision above
+                        </p>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -531,10 +608,17 @@ export default function PartnerDetailPage() {
             <div className="space-y-4">
               {kycRecord ? (
                 <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-light-text-2 dark:text-dark-text-2">
-                      Review all uploaded documents below
-                    </p>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[13px] text-light-text-2 dark:text-dark-text-2">
+                        Review all uploaded documents below
+                      </p>
+                      {showMixedStatusHint && kycRecord.status === "PENDING" && (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
+                          Review remaining documents or finalize decision above
+                        </p>
+                      )}
+                    </div>
                     <KycActionBar
                       kycStatus={kycRecord.status}
                       onApprove={handleApproveKyc}
@@ -557,6 +641,9 @@ export default function PartnerDetailPage() {
                           {kycRecord.resubmittedAt
                             ? formatRelative(kycRecord.resubmittedAt)
                             : "recently"}
+                        </p>
+                        <p className="text-[12px] text-light-text-3 dark:text-dark-text-3 mt-1">
+                          Previously approved documents do not need re-review
                         </p>
                       </div>
                     </div>
