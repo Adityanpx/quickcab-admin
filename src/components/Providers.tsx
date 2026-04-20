@@ -12,7 +12,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 60 * 1000,
-            retry: 1,
+            // Retry once on true network failures (timeout / offline).
+            // Never retry on HTTP errors (4xx/5xx) — they won't self-heal.
+            retry: (failureCount, error: unknown) => {
+              const status = (error as { response?: { status?: number } })?.response?.status;
+              if (status) return false;          // HTTP error → don't retry
+              return failureCount < 1;           // Network error → one retry
+            },
             refetchOnWindowFocus: false,
           },
         },

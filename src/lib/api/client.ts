@@ -29,7 +29,8 @@ export const tokenStorage = {
 // ─── Axios Instance ───────────────────────────────────────
 const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000,
+  // 65 s — long enough to survive Render free-tier cold starts (~50 s)
+  timeout: 65000,
   headers: {
     "Content-Type": "application/json",
     "X-Client-Type": "ADMIN",

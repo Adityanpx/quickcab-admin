@@ -32,12 +32,22 @@ export default function SubscriptionsPage() {
   const [editPlan, setEditPlan] = useState<SubscriptionPlan | null>(null);
   const [deletePlan, setDeletePlan] = useState<SubscriptionPlan | null>(null);
 
-  const { data, isLoading } = useSubscriptionPlans();
+  const { data, isLoading, isError } = useSubscriptionPlans();
   const createMutation = useCreatePlan();
   const updateMutation = useUpdatePlan();
   const deleteMutation = useDeletePlan();
 
   if (isLoading) return <DashboardSkeleton />;
+  if (isError) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-3">
+      <p className="text-[14px] font-medium text-light-text dark:text-dark-text">
+        Failed to load subscription plans
+      </p>
+      <p className="text-[13px] text-light-text-3 dark:text-dark-text-3">
+        The server returned an error. Please try refreshing the page.
+      </p>
+    </div>
+  );
 
   const plans = data?.plans ?? [];
   const partnerEnabled = data?.enabled ?? false;
