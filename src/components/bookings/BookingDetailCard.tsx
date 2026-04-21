@@ -8,6 +8,7 @@ import {
   Car,
   IndianRupee,
   ArrowRight,
+  User,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge, Badge } from "@/components/ui/Badge";

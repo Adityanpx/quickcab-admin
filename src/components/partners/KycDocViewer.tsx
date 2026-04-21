@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, ZoomIn, Download, FileX, CheckCircle, XCircle,
+  X, ZoomIn, ZoomOut, RotateCw, Download, FileX, CheckCircle, XCircle,
   AlertCircle, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,10 @@ function DocCard({
   onReject?: (fieldKey: string) => void;
   loading?: boolean;
 }) {
+  console.log(`[KYC_DOC] Rendering doc: ${doc.label}`);
+  console.log(`[KYC_DOC] URL received from API: ${doc.url}`);
+  console.log(`[KYC_DOC] Status: ${doc.status}`);
+
   const statusBorder = {
     PENDING: "border-light-border dark:border-dark-border",
     APPROVED: "border-green-400 dark:border-brand-green",
@@ -90,34 +94,28 @@ function DocCard({
         </div>
       )}
 
-      {/* Image area */}
-      <div className="group relative">
+      {/* Image area — click anywhere to open viewer */}
+      <div
+        className="group relative overflow-hidden cursor-pointer"
+        onClick={() => onView(doc.url!, doc.label)}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={doc.url}
           alt={doc.label}
-          className="w-full h-36 object-cover"
+          className="w-full h-36 object-cover transition-transform duration-300 group-hover:scale-105"
+          onLoad={() => {
+            console.log(`[KYC_DOC] ✅ Image loaded successfully — ${doc.label}`);
+            console.log(`[KYC_DOC] URL: ${doc.url}`);
+          }}
+          onError={(e) => {
+            console.error(`[KYC_DOC] ❌ Image failed to load — ${doc.label}`);
+            console.error(`[KYC_DOC] URL that failed: ${doc.url}`);
+            console.error(`[KYC_DOC] Error event:`, e);
+          }}
         />
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <button
-            onClick={() => onView(doc.url!, doc.label)}
-            className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
-            title="Zoom in"
-          >
-            <ZoomIn size={15} />
-          </button>
-          <a
-            href={doc.url}
-            download
-            target="_blank"
-            rel="noreferrer"
-            className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
-            title="Download"
-          >
-            <Download size={15} />
-          </a>
-        </div>
+        {/* Subtle dark tint on hover — no buttons */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 pointer-events-none" />
       </div>
 
       {/* Label + status */}
@@ -195,8 +193,23 @@ export function KycDocViewer({
 }: KycDocViewerProps) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [lightboxLabel, setLightboxLabel] = useState("");
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  const openLightbox = (url: string, label: string) => {
+    setLightboxUrl(url);
+    setLightboxLabel(label);
+    setZoom(1);
+    setRotation(0);
+  };
+
+  const closeLightbox = () => {
+    setLightboxUrl(null);
+    setZoom(1);
+    setRotation(0);
+  };
 
   const handleRejectConfirm = () => {
     if (!rejectTarget || !rejectReason.trim()) return;
@@ -213,10 +226,7 @@ export function KycDocViewer({
           <DocCard
             key={doc.fieldKey}
             doc={doc}
-            onView={(url, label) => {
-              setLightboxUrl(url);
-              setLightboxLabel(label);
-            }}
+            onView={openLightbox}
             onApprove={onApproveDoc ? (key) => onApproveDoc(key) : undefined}
             onReject={
               onRejectDoc
@@ -231,40 +241,156 @@ export function KycDocViewer({
         ))}
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox — zoom · rotate · mouse-wheel zoom */}
       <AnimatePresence>
         {lightboxUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center select-none">
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setLightboxUrl(null)}
-              className="absolute inset-0 bg-black/85"
+              onClick={closeLightbox}
+              className="absolute inset-0 bg-black/90"
             />
+
+            {/* Toolbar */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="relative z-10 max-w-2xl w-full"
+              className="relative z-10 flex items-center gap-1.5 mb-4 px-3 py-2 rounded-2xl bg-white/10 backdrop-blur-sm"
             >
-              <p className="text-white text-center text-sm font-medium mb-3">
+              <span className="text-white/80 text-[13px] font-medium pr-2 max-w-[160px] truncate">
                 {lightboxLabel}
-              </p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={lightboxUrl}
-                alt="KYC Document"
-                className="w-full rounded-2xl object-contain max-h-[80vh]"
-              />
+              </span>
+
+              <div className="w-px h-5 bg-white/20 mx-1" />
+
+              {/* Zoom out */}
               <button
-                onClick={() => setLightboxUrl(null)}
-                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-800 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
+                onClick={() => setZoom(p => Math.max(0.25, parseFloat((p - 0.25).toFixed(2))))}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                title="Zoom out"
+              >
+                <ZoomOut size={15} />
+              </button>
+
+              {/* Zoom % */}
+              <span className="text-white/60 text-[12px] font-mono w-11 text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+
+              {/* Zoom in */}
+              <button
+                onClick={() => setZoom(p => Math.min(5, parseFloat((p + 0.25).toFixed(2))))}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                title="Zoom in"
+              >
+                <ZoomIn size={15} />
+              </button>
+
+              <div className="w-px h-5 bg-white/20 mx-1" />
+
+              {/* Rotate 90° clockwise */}
+              <button
+                onClick={() => setRotation(p => (p + 90) % 360)}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                title="Rotate 90°"
+              >
+                <RotateCw size={15} />
+              </button>
+
+              {/* Reset */}
+              <button
+                onClick={() => { setZoom(1); setRotation(0); }}
+                className="px-3 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white/60 hover:text-white text-[11px] font-medium transition-colors"
+              >
+                Reset
+              </button>
+
+              <div className="w-px h-5 bg-white/20 mx-1" />
+
+              {/* Download */}
+              <a
+                href={lightboxUrl}
+                download
+                target="_blank"
+                rel="noreferrer"
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                title="Download"
+              >
+                <Download size={15} />
+              </a>
+
+              {/* Close */}
+              <button
+                onClick={closeLightbox}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-500/50 flex items-center justify-center text-white transition-colors"
+                title="Close"
               >
                 <X size={15} />
               </button>
             </motion.div>
+
+            {/* Image viewport — overflow-auto so zoomed content is scrollable */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ duration: 0.2 }}
+              className="relative z-10 overflow-auto rounded-2xl"
+              style={{ width: "min(90vw, 820px)", height: "min(72vh, 620px)" }}
+              onWheel={(e) => {
+                const delta = e.deltaY < 0 ? 0.1 : -0.1;
+                setZoom(p => Math.min(5, Math.max(0.25, parseFloat((p + delta).toFixed(2)))));
+              }}
+            >
+              {/*
+                Inner div expands to zoom * 100% of the viewport.
+                At zoom=1 it fills the box exactly; at zoom>1 it overflows,
+                triggering scrollbars so every part of the image is reachable.
+              */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: "100%",
+                  minHeight: "100%",
+                  width: zoom > 1 ? `${zoom * 100}%` : "100%",
+                  height: zoom > 1 ? `${zoom * 100}%` : "100%",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lightboxUrl}
+                  alt={lightboxLabel}
+                  draggable={false}
+                  className="select-none"
+                  style={{
+                    width: zoom > 1 ? "100%" : "auto",
+                    height: zoom > 1 ? "auto" : "100%",
+                    maxWidth: zoom > 1 ? "none" : "100%",
+                    maxHeight: zoom > 1 ? "none" : "100%",
+                    objectFit: "contain",
+                    transform: `rotate(${rotation}deg)`,
+                    transition: "transform 0.15s ease",
+                  }}
+                />
+              </div>
+            </motion.div>
+
+            {/* Hint */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative z-10 mt-3 text-white/25 text-[11px]"
+            >
+              Scroll to zoom · Click outside to close
+            </motion.p>
           </div>
         )}
       </AnimatePresence>

@@ -6,10 +6,16 @@ export const bookingsApi = {
   getAll: async (
     filters: BookingListFilters = {}
   ): Promise<PaginatedResponse<Booking>> => {
+    // Backend returns: { success, message, data: Booking[], pagination: {...} }
     const response = await apiClient.get<
-      ApiResponse<PaginatedResponse<Booking>>
+      ApiResponse<Booking[]> & { pagination: PaginatedResponse<Booking>["pagination"] }
     >("/admin/bookings", { params: filters });
-    return response.data.data;
+    const bookingRecords = response.data.data;
+    const pagination = response.data.pagination;
+    return {
+      items: bookingRecords || [],
+      pagination,
+    };
   },
 
   getById: async (id: string): Promise<Booking> => {

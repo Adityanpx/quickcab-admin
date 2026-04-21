@@ -14,14 +14,8 @@ import type { SubscriptionPlan } from "@/lib/api/subscriptions";
 const planSchema = z.object({
   name: z.string().min(2, "Name is required"),
   description: z.string().min(5, "Description is required"),
-  price: z
-    .number({ invalid_type_error: "Enter a valid price" })
-    .min(1, "Price must be at least ₹1")
-    .max(100000),
-  durationDays: z
-    .number({ invalid_type_error: "Enter valid days" })
-    .min(1)
-    .max(3650),
+  price: z.number().min(1, "Price must be at least ₹1").max(100000),
+  durationDays: z.number().min(1).max(3650),
   userType: z.enum(["PARTNER", "PROVIDER", "BOTH"]),
 });
 

@@ -32,10 +32,9 @@ export const supportApi = {
     status?: TicketStatus;
   } = {}): Promise<PaginatedResponse<SupportTicket>> => {
     const response = await apiClient.get<
-      ApiResponse<PaginatedResponse<SupportTicket>>
+      ApiResponse<SupportTicket[]> & { pagination: PaginatedResponse<SupportTicket>["pagination"] }
     >("/admin/support", { params });
 
-    // Backend returns: { success, message, data: [], pagination: {...} }
     const ticketRecords = response.data.data;
     const pagination = response.data.pagination;
 

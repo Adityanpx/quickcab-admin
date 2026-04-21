@@ -26,11 +26,9 @@ export const partnersApi = {
     filters: PartnerListFilters = {}
   ): Promise<PaginatedResponse<Partner>> => {
     const response = await apiClient.get<
-      ApiResponse<PaginatedResponse<Partner>>
+      ApiResponse<Partner[]> & { pagination: PaginatedResponse<Partner>["pagination"] }
     >("/admin/partners", { params: filters });
-    
-    // Backend returns: { success, message, data: [], pagination: {...} }
-    // Component expects: { items: [], pagination: {...} }
+
     const partnerRecords = response.data.data;
     const pagination = response.data.pagination;
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { Star, Flag, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ratingsApi } from "@/lib/api/ratings";
@@ -14,11 +15,11 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-const sectionVariants = {
+const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as any },
   }),
 };
 

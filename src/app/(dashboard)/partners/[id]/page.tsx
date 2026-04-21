@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import {
   ArrowLeft,
   Phone,
@@ -16,7 +17,10 @@ import {
   ShieldCheck,
   Copy,
   RefreshCw,
+  ArrowRight,
+  Eye,
 } from "lucide-react";
+import Link from "next/link";
 import {
   usePartner,
   useSuspendPartner,
@@ -24,6 +28,7 @@ import {
   useRejectKyc,
   useReviewDocument,
 } from "@/lib/hooks/usePartners";
+import { usePartnerBookings } from "@/lib/hooks/useBookings";
 import { partnersApi } from "@/lib/api/partners";
 import type { KycRejectPayload } from "@/lib/api/partners";
 import { KycDocViewer, KycActionBar } from "@/components/partners/KycDocViewer";
@@ -33,7 +38,9 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Badge, StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { DashboardSkeleton } from "@/components/ui/SkeletonLoader";
+import { DashboardSkeleton, TableRowSkeleton } from "@/components/ui/SkeletonLoader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Pagination } from "@/components/ui/Pagination";
 import { formatDate, formatRelative, formatCurrency, cn } from "@/lib/utils";
 import type { SuspendPartnerPayload } from "@/types/partner";
 import toast from "react-hot-toast";
@@ -48,11 +55,11 @@ const TAB_LIST: { key: Tab; label: string }[] = [
   { key: "wallet", label: "Wallet History" },
 ];
 
-const sectionVariants = {
+const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.07, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: { delay: i * 0.07, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as any },
   }),
 };
 
@@ -67,12 +74,14 @@ export default function PartnerDetailPage() {
   const [showBlock, setShowBlock] = useState(false);
   const [rejectNoteOpen, setRejectNoteOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const [bookingPage, setBookingPage] = useState(1);
 
   const { data: partner, isLoading, isError } = usePartner(partnerId);
   const suspendMutation = useSuspendPartner();
   const approveKycMutation = useApproveKyc();
   const rejectKycMutation = useRejectKyc();
   const reviewDocMutation = useReviewDocument();
+  const { data: bookingsData, isLoading: bookingsLoading } = usePartnerBookings(partner?.id ?? "", bookingPage);
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError || !partner) {
@@ -668,10 +677,94 @@ export default function PartnerDetailPage() {
 
           {/* ── Bookings Tab ──────────────────────────── */}
           {activeTab === "bookings" && (
-            <div className="card">
-              <p className="text-[13px] text-light-text-2 dark:text-dark-text-2 py-8 text-center">
-                Booking history will be available once bookings API is integrated.
-              </p>
+            <div className="card p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-light-border dark:border-dark-border">
+                <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text">
+                  Booking History
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="table-base">
+                  <thead>
+                    <tr>
+                      <th className="pl-5">Route</th>
+                      <th>Role</th>
+                      <th>Date</th>
+                      <th>Fare</th>
+                      <th>Status</th>
+                      <th className="pr-5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bookingsLoading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRowSkeleton key={i} cols={6} />
+                      ))
+                    ) : (bookingsData?.items ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <EmptyState
+                            title="No bookings found"
+                            description="This partner has no booking history yet"
+                          />
+                        </td>
+                      </tr>
+                    ) : (
+                      (bookingsData?.items ?? []).map((booking) => (
+                        <tr key={booking.id}>
+                          <td className="pl-5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[13px] font-medium text-light-text dark:text-dark-text">
+                                {booking.pickupCity}
+                              </span>
+                              <ArrowRight size={12} className="text-light-text-3 dark:text-dark-text-3 shrink-0" />
+                              <span className="text-[13px] font-medium text-light-text dark:text-dark-text">
+                                {booking.dropCity}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 font-mono mt-0.5">
+                              #{booking.id.slice(-8).toUpperCase()}
+                            </p>
+                          </td>
+                          <td>
+                            <span className="text-[12px] text-light-text-2 dark:text-dark-text-2">
+                              {booking.postedBy?.id === partner.id ? "Posted" : "Accepted"}
+                            </span>
+                          </td>
+                          <td>
+                            <p className="text-[12px] text-light-text dark:text-dark-text">{formatDate(booking.date)}</p>
+                            <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">{booking.time}</p>
+                          </td>
+                          <td>
+                            <p className="text-[13px] font-semibold text-light-text dark:text-dark-text">
+                              {formatCurrency(booking.postedAmount)}
+                            </p>
+                          </td>
+                          <td><StatusBadge status={booking.status} /></td>
+                          <td className="pr-5 text-right">
+                            <Link href={`/bookings/${booking.id}`}>
+                              <button className="text-[12px] text-brand-purple hover:underline flex items-center gap-1 ml-auto">
+                                <Eye size={13} /> View
+                              </button>
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {!bookingsLoading && (bookingsData?.items ?? []).length > 0 && (
+                <div className="px-5 py-4 border-t border-light-border dark:border-dark-border">
+                  <Pagination
+                    page={bookingPage}
+                    totalPages={bookingsData?.pagination?.totalPages ?? 1}
+                    total={bookingsData?.pagination?.total ?? 0}
+                    limit={10}
+                    onPageChange={setBookingPage}
+                  />
+                </div>
+              )}
             </div>
           )}
 

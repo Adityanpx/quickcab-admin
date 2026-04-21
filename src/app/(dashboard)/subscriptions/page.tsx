@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { Plus, CreditCard } from "lucide-react";
 import {
   useSubscriptionPlans,
@@ -19,11 +20,11 @@ import { StatCard } from "@/components/ui/StatCard";
 import { DashboardSkeleton } from "@/components/ui/SkeletonLoader";
 import type { SubscriptionPlan, CreatePlanPayload } from "@/lib/api/subscriptions";
 
-const sectionVariants = {
+const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as any },
   }),
 };
 

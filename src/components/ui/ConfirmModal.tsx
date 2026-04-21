@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "./Button";
 import { cn } from "@/lib/utils";
@@ -17,17 +18,17 @@ interface ConfirmModalProps {
   loading?: boolean;
 }
 
-const backdropVariants = {
+const backdropVariants: Variants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { duration: 0.2 } },
   exit: { opacity: 0, transition: { duration: 0.15 } },
 };
 
-const modalVariants = {
+const modalVariants: Variants = {
   hidden: { opacity: 0, scale: 0.94, y: 12 },
   visible: {
     opacity: 1, scale: 1, y: 0,
-    transition: { duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: { duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] as any },
   },
   exit: {
     opacity: 0, scale: 0.94, y: 12,

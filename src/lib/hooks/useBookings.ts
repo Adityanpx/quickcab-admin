@@ -22,7 +22,7 @@ export function useBooking(id: string) {
 export function usePartnerBookings(partnerId: string, page = 1) {
   return useQuery({
     queryKey: ["bookings", "partner", partnerId, page],
-    queryFn: () => bookingsApi.getAll({ page, limit: 10 }),
+    queryFn: () => bookingsApi.getAll({ page, limit: 10, partnerId }),
     enabled: !!partnerId,
     staleTime: 30 * 1000,
   });

@@ -90,7 +90,6 @@ export function CancelBookingModal({
         <div className="px-3 py-2.5 rounded-xl bg-brand-red-muted border border-brand-red/20">
           <p className="text-[12px] text-brand-red">
             This will cancel the booking immediately. Both partners will be notified.
-            {booking?.coinsAwarded === false && " No coins have been awarded yet."}
           </p>
         </div>
 

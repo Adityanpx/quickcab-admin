@@ -13,7 +13,7 @@ export default function DashboardNotFound() {
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] as any }}
       >
         {/* 404 display */}
         <div className="relative mb-8">

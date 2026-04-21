@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { BookOpen, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useBookings } from "@/lib/hooks/useBookings";
 import { bookingsApi } from "@/lib/api/bookings";
@@ -14,11 +15,11 @@ import type { Booking } from "@/types/booking";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-const sectionVariants = {
+const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as any },
   }),
 };
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { Plus } from "lucide-react";
 import { useWithdrawals, useApproveWithdrawal, useRejectWithdrawal } from "@/lib/hooks/useWallet";
 import { WalletStats } from "@/components/wallet/WalletStats";
@@ -13,11 +14,11 @@ import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { WithdrawalRequest } from "@/types/wallet";
 
-const sectionVariants = {
+const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: { delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as any },
   }),
 };
 

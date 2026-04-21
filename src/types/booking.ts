@@ -44,4 +44,5 @@ export interface BookingListFilters {
   vehicleType?: string;
   dateFrom?: string;
   dateTo?: string;
+  partnerId?: string;
 }
