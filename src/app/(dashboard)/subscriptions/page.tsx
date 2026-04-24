@@ -9,6 +9,7 @@ import {
   useCreatePlan,
   useUpdatePlan,
   useDeletePlan,
+  useToggleStatus,
 } from "@/lib/hooks/useSubscriptions";
 import { PlanCard } from "@/components/subscriptions/PlanCard";
 import { PlanModal } from "@/components/subscriptions/PlanModal";
@@ -34,6 +35,7 @@ export default function SubscriptionsPage() {
   const [deletePlan, setDeletePlan] = useState<SubscriptionPlan | null>(null);
 
   const { data, isLoading, isError } = useSubscriptionPlans();
+  const { data: toggleData } = useToggleStatus();
   const createMutation = useCreatePlan();
   const updateMutation = useUpdatePlan();
   const deleteMutation = useDeletePlan();
@@ -51,12 +53,14 @@ export default function SubscriptionsPage() {
   );
 
   const plans = data?.plans ?? [];
-  const partnerEnabled = data?.enabled ?? false;
+  const partnerEnabled = toggleData?.partner?.enabled ?? false;
+  const providerEnabled = toggleData?.serviceProvider?.enabled ?? false;
+
   const partnerPlans = plans.filter(
     (p) => p.userType === "PARTNER" || p.userType === "BOTH"
   );
   const providerPlans = plans.filter(
-    (p) => p.userType === "PROVIDER"
+    (p) => p.userType === "SERVICE_PROVIDER" || p.userType === "BOTH"
   );
 
   const handlePlanSubmit = async (
@@ -124,8 +128,8 @@ export default function SubscriptionsPage() {
             description="When ON — new Partners must subscribe after OTP login. Existing Partners get 3-day grace period."
           />
           <RoleToggle
-            role="PROVIDER"
-            enabled={false}
+            role="SERVICE_PROVIDER"
+            enabled={providerEnabled}
             label="Provider Subscription"
             description="When ON — Service Providers must subscribe to remain active on the platform."
           />

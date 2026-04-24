@@ -93,7 +93,7 @@ export function RatingTable({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.025, duration: 0.25 }}
                   className={cn(
-                    rating.stars <= 2 &&
+                    rating.isFlagged && !rating.isRemoved &&
                       "bg-brand-red-muted/30 dark:bg-brand-red-muted/20"
                   )}
                 >
@@ -136,7 +136,7 @@ export function RatingTable({
                   {/* Stars */}
                   <td>
                     <StarDisplay stars={rating.stars} />
-                    {rating.stars <= 2 && (
+                    {rating.isFlagged && !rating.isRemoved && (
                       <span className="text-[10px] font-medium text-brand-red mt-0.5 block">
                         ⚑ Flagged
                       </span>

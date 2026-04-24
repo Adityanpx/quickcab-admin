@@ -6,9 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bell, MessageSquare, Users, MapPin, User } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
-import { notificationsApi, type BroadcastPayload } from "@/lib/api/notifications";
+import { notificationsApi, type BroadcastPayload, type BroadcastHistoryItem } from "@/lib/api/notifications";
 import { cn } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 const broadcastSchema = z.object({
@@ -63,18 +65,18 @@ const AUDIENCE_OPTIONS: {
   },
 ];
 
-interface RecentBroadcast {
-  id: string;
-  title: string;
-  audience: string;
-  channels: string[];
-  sentAt: string;
-}
-
 export function BroadcastForm() {
+  const qc = useQueryClient();
   const [channels, setChannels] = useState<Channel[]>(["PUSH"]);
   const [isSending, setIsSending] = useState(false);
-  const [recentBroadcasts] = useState<RecentBroadcast[]>([]);
+
+  const { data: historyData } = useQuery({
+    queryKey: ["notifications", "history"],
+    queryFn: () => notificationsApi.getHistory({ limit: 10 }),
+    staleTime: 30 * 1000,
+  });
+
+  const recentBroadcasts: BroadcastHistoryItem[] = historyData?.items ?? [];
 
   const {
     register,
@@ -117,6 +119,7 @@ export function BroadcastForm() {
       };
       await notificationsApi.broadcast(payload);
       toast.success("Notification broadcast sent successfully");
+      qc.invalidateQueries({ queryKey: ["notifications", "history"] });
       reset();
       setChannels(["PUSH"]);
     } catch {
@@ -438,10 +441,13 @@ export function BroadcastForm() {
                   className="border-b border-light-border dark:border-dark-border pb-3 last:border-0 last:pb-0"
                 >
                   <p className="text-[13px] font-medium text-light-text dark:text-dark-text">
-                    {b.title}
+                    {b.newValue?.title ?? "Broadcast"}
                   </p>
                   <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
-                    {b.audience} · {b.channels.join(", ")} · {b.sentAt}
+                    {b.newValue?.audience}
+                    {" · "}{b.newValue?.channels?.join(", ")}
+                    {" · "}{b.newValue?.userCount ?? 0} users
+                    {" · "}{formatRelative(b.createdAt)}
                   </p>
                 </div>
               ))}

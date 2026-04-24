@@ -7,7 +7,7 @@ export interface SubscriptionPlan {
   description: string;
   price: number;
   durationDays: number;
-  userType: "PARTNER" | "PROVIDER" | "BOTH";
+  userType: "PARTNER" | "SERVICE_PROVIDER" | "BOTH";
   benefits: string[];
   isActive: boolean;
   createdAt: string;
@@ -19,52 +19,68 @@ export interface CreatePlanPayload {
   description: string;
   price: number;
   durationDays: number;
-  userType: "PARTNER" | "PROVIDER" | "BOTH";
+  userType: "PARTNER" | "SERVICE_PROVIDER" | "BOTH";
   benefits: string[];
 }
 
+export interface UpdatePlanPayload {
+  name?: string;
+  description?: string;
+  price?: number;
+  durationDays?: number;
+  userType?: "PARTNER" | "SERVICE_PROVIDER" | "BOTH";
+  benefits?: string[];
+  isActive?: boolean;
+}
+
 export const subscriptionsApi = {
-  getPlans: async (): Promise<{
-    enabled: boolean;
-    plans: SubscriptionPlan[];
-  }> => {
+  getAllPlans: async (): Promise<{ plans: SubscriptionPlan[] }> => {
     const response = await apiClient.get<
-      ApiResponse<{ enabled: boolean; plans: SubscriptionPlan[] }>
-    >("/subscriptions/plans");
-    return response.data.data;
+      ApiResponse<SubscriptionPlan[]> & { pagination: any }
+    >("/subscriptions/admin/plans", {
+      params: { limit: 100 },
+    });
+    return {
+      plans: response.data.data || [],
+    };
   },
 
   createPlan: async (payload: CreatePlanPayload) => {
-    const response = await apiClient.post(
-      "/admin/subscriptions/plans",
-      payload
-    );
+    const response = await apiClient.post("/subscriptions/admin/plans", payload);
     return response.data;
   },
 
-  updatePlan: async (id: string, payload: Partial<CreatePlanPayload>) => {
-    const response = await apiClient.put(
-      `/admin/subscriptions/plans/${id}`,
-      payload
-    );
+  updatePlan: async (id: string, payload: UpdatePlanPayload) => {
+    const response = await apiClient.put(`/subscriptions/admin/plans/${id}`, payload);
     return response.data;
   },
 
   deletePlan: async (id: string) => {
-    const response = await apiClient.delete(
-      `/admin/subscriptions/plans/${id}`
-    );
+    const response = await apiClient.delete(`/subscriptions/admin/plans/${id}`);
     return response.data;
   },
 
   toggleSubscription: async (
-    role: "PARTNER" | "PROVIDER",
+    userType: "PARTNER" | "SERVICE_PROVIDER",
     enabled: boolean
   ) => {
-    const response = await apiClient.post(
-      "/admin/subscriptions/toggle",
-      { role, enabled }
-    );
+    const response = await apiClient.post("/subscriptions/admin/toggle", {
+      userType,
+      enabled,
+    });
     return response.data;
+  },
+
+  getToggleStatus: async (): Promise<{
+    partner: { enabled: boolean };
+    serviceProvider: { enabled: boolean };
+  }> => {
+    const response = await apiClient.get<
+      ApiResponse<{
+        partner: { enabled: boolean };
+        serviceProvider: { enabled: boolean };
+      }>
+    >("/subscriptions/admin/toggle");
+    return response.data.data;
   },
 };

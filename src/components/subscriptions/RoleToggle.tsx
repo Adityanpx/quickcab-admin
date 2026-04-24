@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { useToggleSubscription } from "@/lib/hooks/useSubscriptions";
 
 interface RoleToggleProps {
-  role: "PARTNER" | "PROVIDER";
+  role: "PARTNER" | "SERVICE_PROVIDER";
   enabled: boolean;
   label: string;
   description: string;
@@ -20,7 +20,7 @@ export function RoleToggle({
   const toggleMutation = useToggleSubscription();
 
   const handleToggle = () => {
-    toggleMutation.mutate({ role, enabled: !enabled });
+    toggleMutation.mutate({ userType: role, enabled: !enabled });
   };
 
   return (

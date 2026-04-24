@@ -7,6 +7,7 @@ import { Star, Flag, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ratingsApi } from "@/lib/api/ratings";
 import type { Rating } from "@/lib/api/ratings";
+import { dashboardApi } from "@/lib/api/dashboard";
 import { RatingTable } from "@/components/ratings/RatingTable";
 import { RemoveRatingModal } from "@/components/ratings/RemoveRatingModal";
 import { StatCard } from "@/components/ui/StatCard";
@@ -41,15 +42,22 @@ export default function RatingsPage() {
   const [removeTarget, setRemoveTarget] = useState<Rating | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ratings", { page, maxStars, flagged: viewMode === "flagged" }],
+    queryKey: ["ratings", { page, maxStars, isFlagged: viewMode === "flagged" }],
     queryFn: () =>
       ratingsApi.getAll({
         page,
         limit: 15,
-        flagged: viewMode === "flagged" ? true : undefined,
+        isFlagged: viewMode === "flagged" ? "true" : undefined,
+        isRemoved: "false",
         maxStars: maxStars ? Number(maxStars) : undefined,
       }),
     staleTime: 30 * 1000,
+  });
+
+  const { data: dashStats } = useQuery({
+    queryKey: ["dashboard", "stats"],
+    queryFn: dashboardApi.getStats,
+    staleTime: 60 * 1000,
   });
 
   const removeMutation = useMutation({
@@ -66,12 +74,7 @@ export default function RatingsPage() {
   const ratings = data?.items ?? [];
   const pagination = data?.pagination;
 
-  // Stats
-  const flaggedCount = ratings.filter((r) => r.stars <= 2).length;
-  const avgStars =
-    ratings.length > 0
-      ? (ratings.reduce((s, r) => s + r.stars, 0) / ratings.length).toFixed(1)
-      : "—";
+  const platformFlagged = dashStats?.ratings?.flagged ?? 0;
 
   const handleRemoveConfirm = async (reason: string) => {
     if (!removeTarget) return;
@@ -106,24 +109,24 @@ export default function RatingsPage() {
         <StatCard
           index={1}
           label="Flagged (≤ 2★)"
-          value={flaggedCount}
-          subtext="on current page"
+          value={platformFlagged.toLocaleString("en-IN")}
+          subtext="platform-wide"
           icon={<Flag size={16} />}
-          accentColor={flaggedCount > 3 ? "red" : "orange"}
+          accentColor={platformFlagged > 3 ? "red" : "orange"}
         />
         <StatCard
           index={2}
-          label="Avg Stars"
-          value={avgStars}
-          subtext="on current page"
+          label="Total Submitted"
+          value={(pagination?.total ?? 0).toLocaleString("en-IN")}
+          subtext="active ratings"
           icon={<Star size={16} />}
           accentColor="green"
         />
         <StatCard
           index={3}
-          label="Auto-Flagged"
-          value={flaggedCount}
-          subtext="≤ 2 stars auto-alerts"
+          label="Pending Review"
+          value={platformFlagged.toLocaleString("en-IN")}
+          subtext="flagged platform-wide"
           icon={<AlertTriangle size={16} />}
           accentColor="red"
         />

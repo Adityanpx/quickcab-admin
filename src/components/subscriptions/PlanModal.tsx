@@ -16,7 +16,7 @@ const planSchema = z.object({
   description: z.string().min(5, "Description is required"),
   price: z.number().min(1, "Price must be at least ₹1").max(100000),
   durationDays: z.number().min(1).max(3650),
-  userType: z.enum(["PARTNER", "PROVIDER", "BOTH"]),
+  userType: z.enum(["PARTNER", "SERVICE_PROVIDER", "BOTH"]),
 });
 
 type PlanFormData = z.infer<typeof planSchema>;
@@ -31,7 +31,7 @@ const DURATION_PRESETS = [
 
 const USER_TYPE_OPTIONS = [
   { value: "PARTNER", label: "Partners Only" },
-  { value: "PROVIDER", label: "Service Providers Only" },
+  { value: "SERVICE_PROVIDER", label: "Service Providers Only" },
   { value: "BOTH", label: "All Users" },
 ];
 
@@ -190,7 +190,7 @@ export function PlanModal({
             <FilterSelect
               value={watch("userType")}
               onChange={(v) =>
-                setValue("userType", v as "PARTNER" | "PROVIDER" | "BOTH")
+                setValue("userType", v as "PARTNER" | "SERVICE_PROVIDER" | "BOTH")
               }
               options={USER_TYPE_OPTIONS}
               placeholder="Select"

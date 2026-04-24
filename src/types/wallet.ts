@@ -1,4 +1,4 @@
-export type WithdrawalStatus = "PENDING" | "PROCESSED" | "REJECTED";
+export type WithdrawalStatus = "PENDING" | "PROCESSING" | "PROCESSED" | "REJECTED" | "FAILED";
 export type TransactionType = "CREDIT" | "DEBIT";
 export type TransactionReason =
   | "LEAD_CONFIRMED"
@@ -40,8 +40,10 @@ export interface ManualAdjustPayload {
 }
 
 export interface WalletStats {
-  totalCoinsInCirculation: number;
-  totalWithdrawnINR: number;
   pendingWithdrawalCount: number;
+  processingWithdrawalCount: number;
   pendingWithdrawalAmount: number;
+  processingWithdrawalAmount: number;
+  totalWithdrawnINR: number;
+  totalCoinsInCirculation: number;
 }

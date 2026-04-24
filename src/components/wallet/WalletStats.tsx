@@ -23,39 +23,35 @@ export function WalletStats() {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         index={0}
-        label="Pending Withdrawals"
+        label="Pending Approvals"
         value={stats?.pendingWithdrawalCount ?? 0}
-        subtext="awaiting approval"
+        subtext="awaiting your action"
         icon={<Clock size={16} />}
-        accentColor={
-          (stats?.pendingWithdrawalCount ?? 0) > 5 ? "orange" : "purple"
-        }
+        accentColor={(stats?.pendingWithdrawalCount ?? 0) > 5 ? "orange" : "purple"}
       />
       <StatCard
         index={1}
         label="Pending Amount"
         value={formatCurrency(stats?.pendingWithdrawalAmount ?? 0)}
-        subtext="to be paid out"
+        subtext="to be approved"
         icon={<Wallet size={16} />}
         accentColor="orange"
       />
       <StatCard
         index={2}
-        label="Total Paid Out"
-        value={formatCurrency(stats?.totalWithdrawnINR ?? 0)}
-        subtext="all time"
-        icon={<CheckCircle size={16} />}
-        accentColor="green"
-        trend="up"
-        trendValue="via Razorpay"
+        label="In Processing"
+        value={stats?.processingWithdrawalCount ?? 0}
+        subtext={`${formatCurrency(stats?.processingWithdrawalAmount ?? 0)} in flight`}
+        icon={<TrendingDown size={16} />}
+        accentColor={(stats?.processingWithdrawalCount ?? 0) > 0 ? "orange" : "purple"}
       />
       <StatCard
         index={3}
-        label="Coins in Circulation"
-        value={(stats?.totalCoinsInCirculation ?? 0).toLocaleString("en-IN")}
-        subtext="across all wallets"
-        icon={<TrendingDown size={16} />}
-        accentColor="purple"
+        label="Total Paid Out"
+        value={formatCurrency(stats?.totalWithdrawnINR ?? 0)}
+        subtext="all time via Razorpay"
+        icon={<CheckCircle size={16} />}
+        accentColor="green"
       />
     </div>
   );

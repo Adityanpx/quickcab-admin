@@ -102,9 +102,11 @@ export function StatusBadge({ status }: { status: string }) {
     EXPIRED: "expired",
     CANCELLED: "cancelled",
     PENDING: "pending",
+    PROCESSING: "orange",
     PROCESSED: "processed",
     APPROVED: "approved",
     REJECTED: "rejected",
+    FAILED: "red",
     VEHICLE_OWNER: "partner",
     VENDOR: "vendor",
   };
@@ -123,9 +125,11 @@ export function StatusBadge({ status }: { status: string }) {
     EXPIRED: "Expired",
     CANCELLED: "Cancelled",
     PENDING: "Pending",
+    PROCESSING: "Processing",
     PROCESSED: "Processed",
     APPROVED: "Approved",
     REJECTED: "Rejected",
+    FAILED: "Failed",
     VEHICLE_OWNER: "Vehicle Owner",
     VENDOR: "Vendor",
   };

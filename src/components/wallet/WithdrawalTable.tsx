@@ -155,7 +155,10 @@ export function WithdrawalTable({
                     ) : (
                       <div className="flex justify-end">
                         <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
-                          {w.status === "PROCESSED" ? "Paid out" : "Rejected"}
+                          {w.status === "PROCESSED"  && "Paid out"}
+                          {w.status === "PROCESSING" && "⏳ Processing..."}
+                          {w.status === "REJECTED"   && "Rejected"}
+                          {w.status === "FAILED"     && "⚠ Failed"}
                         </span>
                       </div>
                     )}

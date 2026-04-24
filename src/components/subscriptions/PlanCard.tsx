@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import type { SubscriptionPlan } from "@/lib/api/subscriptions";
+import { useUpdatePlan } from "@/lib/hooks/useSubscriptions";
+import toast from "react-hot-toast";
 
 interface PlanCardProps {
   plan: SubscriptionPlan;
@@ -20,7 +22,7 @@ const USER_TYPE_CONFIG = {
     label: "Partners",
     color: "purple" as const,
   },
-  PROVIDER: {
+  SERVICE_PROVIDER: {
     icon: Wrench,
     label: "Service Providers",
     color: "blue" as const,
@@ -35,8 +37,20 @@ const USER_TYPE_CONFIG = {
 export function PlanCard({ plan, onEdit, onDelete, index = 0 }: PlanCardProps) {
   const config = USER_TYPE_CONFIG[plan.userType] ?? USER_TYPE_CONFIG.PARTNER;
   const Icon = config.icon;
+  const updatePlanMutation = useUpdatePlan();
 
   const isYearly = plan.durationDays >= 300;
+
+  const handleToggleActive = () => {
+    updatePlanMutation.mutate(
+      { id: plan.id, payload: { isActive: !plan.isActive } },
+      {
+        onSuccess: () => {
+          toast.success(plan.isActive ? "Plan deactivated" : "Plan activated");
+        },
+      }
+    );
+  };
 
   return (
     <motion.div
@@ -126,6 +140,19 @@ export function PlanCard({ plan, onEdit, onDelete, index = 0 }: PlanCardProps) {
           className="flex-1"
         >
           Edit Plan
+        </Button>
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={handleToggleActive}
+          loading={updatePlanMutation.isPending}
+          className={
+            plan.isActive
+              ? "text-brand-orange border-brand-orange/30"
+              : "text-brand-green border-brand-green/30"
+          }
+        >
+          {plan.isActive ? "Deactivate" : "Activate"}
         </Button>
         <Button
           variant="danger"

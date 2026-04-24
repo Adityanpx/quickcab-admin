@@ -23,9 +23,11 @@ const sectionVariants: Variants = {
 };
 
 const STATUS_OPTIONS = [
-  { value: "PENDING", label: "Pending" },
-  { value: "PROCESSED", label: "Processed" },
-  { value: "REJECTED", label: "Rejected" },
+  { value: "PENDING",    label: "Pending" },
+  { value: "PROCESSING", label: "Processing" },
+  { value: "PROCESSED",  label: "Processed" },
+  { value: "REJECTED",   label: "Rejected" },
+  { value: "FAILED",     label: "Failed" },
 ];
 
 export default function WalletPage() {

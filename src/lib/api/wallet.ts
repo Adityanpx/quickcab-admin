@@ -13,9 +13,12 @@ export const walletApi = {
     limit?: number;
   } = {}): Promise<PaginatedResponse<WithdrawalRequest>> => {
     const response = await apiClient.get<
-      ApiResponse<PaginatedResponse<WithdrawalRequest>>
+      ApiResponse<WithdrawalRequest[]> & { pagination: PaginatedResponse<WithdrawalRequest>["pagination"] }
     >("/admin/wallet/withdrawals", { params });
-    return response.data.data;
+    return {
+      items: response.data.data || [],
+      pagination: response.data.pagination,
+    };
   },
 
   approveWithdrawal: async (id: string) => {
@@ -43,23 +46,9 @@ export const walletApi = {
   },
 
   getStats: async (): Promise<WalletStats> => {
-    try {
-      const response = await apiClient.get<ApiResponse<WalletStats>>(
-        "/admin/wallet/stats"
-      );
-      return response.data.data;
-    } catch (error: any) {
-      // 404 = endpoint not yet implemented on backend
-      // Return zeros so WalletStats renders gracefully instead of crashing
-      if (error?.response?.status === 404) {
-        return {
-          totalCoinsInCirculation: 0,
-          totalWithdrawnINR: 0,
-          pendingWithdrawalCount: 0,
-          pendingWithdrawalAmount: 0,
-        };
-      }
-      throw error;
-    }
+    const response = await apiClient.get<ApiResponse<WalletStats>>(
+      "/admin/wallet/stats"
+    );
+    return response.data.data;
   },
 };
