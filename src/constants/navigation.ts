@@ -7,6 +7,7 @@ import {
   Star,
   CreditCard,
   Bell,
+  Megaphone,
   Ticket,
   Settings,
   type LucideIcon,
@@ -64,6 +65,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Notifications",
     href: "/notifications",
     icon: Bell,
+  },
+  {
+    label: "Advertisements",
+    href: "/ads",
+    icon: Megaphone,
   },
   {
     label: "Support Tickets",

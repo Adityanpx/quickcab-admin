@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "res.cloudinary.com",
       },
+      {
+        protocol: "https",
+        hostname: "*.wasabisys.com",
+      },
+      {
+        protocol: "https",
+        hostname: "s3.wasabisys.com",
+      },
+      {
+        protocol: "https",
+        hostname: "s3.ap-southeast-1.wasabisys.com",
+      },
     ],
   },
   experimental: {
