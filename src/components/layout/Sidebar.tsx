@@ -10,6 +10,7 @@ import {
   Sun,
   Moon,
   ChevronRight,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/constants/navigation";
@@ -18,15 +19,6 @@ import { authApi } from "@/lib/api/auth";
 import { getInitials } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-// ─── Sidebar Animation Variants ──────────────────────────
-const sidebarVariants = {
-  hidden: { x: -240, opacity: 0 },
-  visible: {
-    x: 0,
-    opacity: 1,
-    transition: { duration: 0.35 },
-  },
-};
 
 const navItemVariants = {
   hidden: { opacity: 0, x: -12 },
@@ -40,7 +32,12 @@ const navItemVariants = {
   }),
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -68,19 +65,26 @@ export function Sidebar() {
   };
 
   return (
-    <motion.aside
-      variants={sidebarVariants}
-      initial="hidden"
-      animate="visible"
+    <aside
       className={cn(
-        "fixed left-0 top-0 h-screen w-[240px] z-30",
+        "fixed left-0 top-0 h-screen w-[240px] z-40",
         "flex flex-col",
         "bg-white dark:bg-dark-surface-2",
-        "border-r border-light-border dark:border-dark-border"
+        "border-r border-light-border dark:border-dark-border",
+        "transition-transform duration-300 ease-in-out",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}
     >
       {/* ── Logo ─────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-light-border dark:border-dark-border shrink-0">
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          className="lg:hidden absolute right-3 top-4 p-1.5 rounded-lg text-light-text-3 dark:text-dark-text-3 hover:bg-light-surface-2 dark:hover:bg-dark-surface transition-colors"
+          aria-label="Close sidebar"
+        >
+          <X size={16} />
+        </button>
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -250,6 +254,6 @@ export function Sidebar() {
           </button>
         </motion.div>
       </div>
-    </motion.aside>
+    </aside>
   );
 }

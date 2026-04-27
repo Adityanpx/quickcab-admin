@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Search, ChevronDown, LogOut, User } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, User, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/constants/navigation";
 import { useAuthStore } from "@/stores/authStore";
@@ -35,7 +35,11 @@ const mockNotifications = [
   { id: "3", title: "Low Rating Alert", message: "Partner flagged: 1.8 avg rating", time: "1h ago", unread: true },
 ];
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { admin, logout } = useAuthStore();
@@ -78,24 +82,41 @@ export function Header() {
   return (
     <header
       className={cn(
-        "fixed top-0 left-[240px] right-0 h-16 z-20",
-        "flex items-center justify-between px-6",
+        "fixed top-0 left-0 lg:left-[240px] right-0 h-16 z-20",
+        "flex items-center justify-between px-4 md:px-6",
         "bg-white/80 dark:bg-dark-surface-2/80",
         "backdrop-blur-md",
         "border-b border-light-border dark:border-dark-border"
       )}
     >
-      {/* ── Left: Breadcrumb ──────────────────────────── */}
-      <motion.div
-        key={pathname}
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.25 }}
-      >
-        <h1 className="text-[15px] font-semibold text-light-text dark:text-dark-text">
-          {currentPage?.label ?? "Dashboard"}
-        </h1>
-      </motion.div>
+      {/* ── Left: Hamburger (mobile) + Breadcrumb ────── */}
+      <div className="flex items-center gap-3">
+        {/* Hamburger — only on mobile */}
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={onMenuClick}
+          className={cn(
+            "lg:hidden w-9 h-9 rounded-xl flex items-center justify-center",
+            "text-light-text-2 dark:text-dark-text-2",
+            "hover:bg-light-surface-2 dark:hover:bg-dark-surface",
+            "transition-colors duration-150"
+          )}
+          aria-label="Toggle sidebar"
+        >
+          <Menu size={18} />
+        </motion.button>
+
+        <motion.div
+          key={pathname}
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <h1 className="text-[15px] font-semibold text-light-text dark:text-dark-text">
+            {currentPage?.label ?? "Dashboard"}
+          </h1>
+        </motion.div>
+      </div>
 
       {/* ── Center: Search ────────────────────────────── */}
       <div className="absolute left-1/2 -translate-x-1/2 w-72 hidden lg:block">
@@ -156,7 +177,7 @@ export function Header() {
                 animate="visible"
                 exit="exit"
                 className={cn(
-                  "absolute right-0 top-11 w-80 rounded-2xl overflow-hidden z-50",
+                  "absolute right-0 top-11 w-[min(320px,calc(100vw-2rem))] rounded-2xl overflow-hidden z-50",
                   "bg-white dark:bg-dark-surface",
                   "border border-light-border dark:border-dark-border",
                   "shadow-lg dark:shadow-black/30"

@@ -85,7 +85,8 @@ export function Modal({ isOpen, onClose, title, children, size = "md", footer }:
             animate="visible"
             exit="exit"
             className={cn(
-              "relative w-full z-10",
+              "relative w-full z-10 flex flex-col",
+              "max-h-[calc(100dvh-2rem)]",
               "bg-white dark:bg-dark-surface",
               "rounded-2xl border border-light-border dark:border-dark-border",
               "shadow-xl dark:shadow-black/40",
@@ -93,7 +94,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md", footer }:
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-light-border dark:border-dark-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-light-border dark:border-dark-border shrink-0">
               <h2 className="font-semibold text-[15px] text-light-text dark:text-dark-text">
                 {title}
               </h2>
@@ -105,12 +106,12 @@ export function Modal({ isOpen, onClose, title, children, size = "md", footer }:
               </button>
             </div>
 
-            {/* Body */}
-            <div className="px-6 py-5">{children}</div>
+            {/* Body — scrollable when content overflows */}
+            <div className="px-5 py-5 overflow-y-auto flex-1">{children}</div>
 
             {/* Footer */}
             {footer && (
-              <div className="px-6 py-4 border-t border-light-border dark:border-dark-border flex items-center justify-end gap-3">
+              <div className="px-5 py-4 border-t border-light-border dark:border-dark-border flex items-center justify-end gap-3 shrink-0">
                 {footer}
               </div>
             )}

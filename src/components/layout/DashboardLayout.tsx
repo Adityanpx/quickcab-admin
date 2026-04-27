@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/api/client";
 
 const pageVariants = {
@@ -19,18 +18,20 @@ const pageVariants = {
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Use the token as the single source of truth.
-    // Zustand's isAuthenticated starts as false on first render (before
-    // rehydration from localStorage), which would incorrectly redirect
-    // logged-in users. The token in localStorage is set synchronously
-    // before router.push("/") fires, so it's always reliable here.
     const token = tokenStorage.getToken();
     if (!token) {
       router.replace("/login");
     }
   }, [router]);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   // Block render until we can confirm a token exists on the client.
   if (typeof window !== "undefined" && !tokenStorage.getToken()) {
@@ -39,13 +40,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-light-bg dark:bg-dark-bg">
-      {/* Fixed Sidebar */}
-      <Sidebar />
+      {/* Mobile overlay — shown behind open sidebar */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            key="sidebar-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Main Content — offset by sidebar width */}
-      <div className="ml-[240px] min-h-screen flex flex-col">
+      {/* Sidebar */}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Main Content — offset by sidebar width on desktop only */}
+      <div className="lg:ml-[240px] min-h-screen flex flex-col">
         {/* Fixed Header */}
-        <Header />
+        <Header onMenuClick={() => setSidebarOpen((v) => !v)} />
 
         {/* Page Content — offset by header height */}
         <main className="flex-1 pt-16 overflow-auto">
@@ -54,7 +70,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             variants={pageVariants}
             initial="hidden"
             animate="visible"
-            className="p-6"
+            className="p-4 md:p-6"
           >
             {children}
           </motion.div>
