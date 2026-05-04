@@ -61,7 +61,7 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
     }
     setUploadError(null);
     setImageError(null);
-  }, [editAd, reset]);
+  }, [isOpen, editAd, reset]);
 
   const handleClose = () => {
     reset();
