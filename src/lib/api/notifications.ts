@@ -76,17 +76,16 @@ export const notificationsApi = {
     return response.data.data?.users ?? [];
   },
 
-  getPresignedUploadUrl: async (fileExtension: string): Promise<{
-    uploadUrl: string;
-    fileKey: string;
-    publicUrl: string;
-  }> => {
+  uploadNotificationImage: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("image", file);
+
     const response = await apiClient.post<{
-      data: { uploadUrl: string; fileKey: string; publicUrl: string };
-    }>("/upload/presigned-url-admin", {
-      category: "ad-images",
-      fileExtension,
+      data: { publicUrl: string; fileKey: string; dimensions: string; format: string };
+    }>("/upload/notification-image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
-    return response.data.data;
+
+    return response.data.data.publicUrl;
   },
 };

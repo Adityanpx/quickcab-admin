@@ -188,14 +188,7 @@ export function BroadcastForm() {
     setIsUploading(true);
     setUploadError(null);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const { uploadUrl, publicUrl } = await notificationsApi.getPresignedUploadUrl(ext);
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-      if (!putRes.ok) throw new Error("Upload failed");
+      const publicUrl = await notificationsApi.uploadNotificationImage(file);
       setImageUrl(publicUrl);
     } catch {
       setUploadError("Upload failed. Please try again.");
@@ -626,7 +619,7 @@ export function BroadcastForm() {
                 Click to upload image
               </p>
               <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
-                JPG, PNG, WebP supported
+                JPG, PNG, WebP · Auto-resized to 1024×512
               </p>
             </div>
           )}
