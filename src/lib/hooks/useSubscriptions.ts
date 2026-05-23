@@ -3,6 +3,7 @@ import {
   subscriptionsApi,
   type CreatePlanPayload,
   type UpdatePlanPayload,
+  type SubscriberFilters,
 } from "@/lib/api/subscriptions";
 import toast from "react-hot-toast";
 
@@ -62,6 +63,14 @@ export function useDeletePlan() {
       toast.success("Plan deleted");
     },
     onError: () => toast.error("Failed to delete plan"),
+  });
+}
+
+export function useSubscribers(filters: SubscriberFilters = {}) {
+  return useQuery({
+    queryKey: ["subscriptions", "subscribers", filters],
+    queryFn: () => subscriptionsApi.getSubscribers(filters),
+    staleTime: 30 * 1000,
   });
 }
 
