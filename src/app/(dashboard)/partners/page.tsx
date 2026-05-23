@@ -144,7 +144,7 @@ export default function PartnersPage() {
     total: pagination?.total ?? 0,
     active: partners.filter((p) => p.status === "ACTIVE").length,
     pendingKyc: partners.filter((p) =>
-      ["KYC_PENDING", "KYC_IN_PROGRESS"].includes(p.status)
+      ["KYC_PENDING", "KYC_IN_PROGRESS", "PROFILE_COMPLETE"].includes(p.status)
     ).length,
     suspended: partners.filter((p) => p.status === "SUSPENDED").length,
   };
