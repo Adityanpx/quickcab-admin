@@ -76,6 +76,16 @@ export default function PartnersPage() {
     setSuspendTarget(null);
   };
 
+  const handleUnblock = async (partner: Partner) => {
+    try {
+      await partnersApi.unblock(partner.id);
+      toast.success(`${partner.name} has been unblocked`);
+      qc.invalidateQueries({ queryKey: ["partners"] });
+    } catch {
+      toast.error('Failed to unblock partner');
+    }
+  };
+
   const handleBlockConfirm = async (reason: string) => {
     if (!blockTarget) return;
     try {
@@ -234,6 +244,7 @@ export default function PartnersPage() {
           onSuspend={setSuspendTarget}
           onBlock={setBlockTarget}
           onUnsuspend={setUnsuspendTarget}
+          onUnblock={(p) => handleUnblock(p)}
         />
       </motion.div>
 

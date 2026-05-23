@@ -29,6 +29,7 @@ interface PartnerTableProps {
   onSuspend: (partner: Partner) => void;
   onBlock: (partner: Partner) => void;
   onUnsuspend: (partner: Partner) => void;
+  onUnblock: (partner: Partner) => void;
 }
 
 // ─── Row Action Menu ──────────────────────────────────────
@@ -37,11 +38,13 @@ function ActionMenu({
   onSuspend,
   onBlock,
   onUnsuspend,
+  onUnblock,
 }: {
   partner: Partner;
   onSuspend: (p: Partner) => void;
   onBlock: (p: Partner) => void;
   onUnsuspend: (p: Partner) => void;
+  onUnblock: (p: Partner) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -89,7 +92,16 @@ function ActionMenu({
               View Details
             </Link>
 
-            {partner.status !== "BLOCKED" && (
+            {partner.status === "BLOCKED" ? (
+              // BLOCKED partners — only option is Unblock
+              <button
+                onClick={() => { onUnblock(partner); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-brand-green hover:bg-brand-green-muted transition-colors"
+              >
+                <ShieldCheck size={14} />
+                Unblock
+              </button>
+            ) : (
               <>
                 {isSuspended ? (
                   <button
@@ -137,6 +149,7 @@ export function PartnerTable({
   onSuspend,
   onBlock,
   onUnsuspend,
+  onUnblock,
 }: PartnerTableProps) {
   return (
     <div className="card p-0 overflow-hidden">
@@ -262,6 +275,7 @@ export function PartnerTable({
                       onSuspend={onSuspend}
                       onBlock={onBlock}
                       onUnsuspend={onUnsuspend}
+                      onUnblock={onUnblock}
                     />
                   </td>
                 </motion.tr>

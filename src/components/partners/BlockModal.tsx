@@ -66,7 +66,7 @@ export function BlockModal({
         <div className="px-3 py-3 rounded-xl bg-brand-red-muted border border-brand-red/20">
           <p className="text-[13px] text-brand-red leading-relaxed">
             <strong>This action is severe.</strong> Blocked partners cannot access
-            the app at all and cannot be automatically reactivated.
+            the app at all. You can unblock them later if needed.
           </p>
         </div>
 

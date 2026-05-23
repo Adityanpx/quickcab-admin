@@ -181,6 +181,16 @@ export default function PartnerDetailPage() {
     }
   };
 
+  const handleUnblock = async () => {
+    try {
+      await partnersApi.unblock(partner.id);
+      toast.success('Partner unblocked successfully');
+      qc.invalidateQueries({ queryKey: ["partners"] });
+    } catch {
+      toast.error('Failed to unblock partner');
+    }
+  };
+
   const handleApproveKyc = async () => {
     await approveKycMutation.mutateAsync({ userId: partner.id });
   };
@@ -317,38 +327,45 @@ export default function PartnerDetailPage() {
         </button>
 
         {/* Action buttons */}
-        {!isBlocked && (
-          <div className="flex items-center gap-2">
-            {isSuspended ? (
-              <Button
-                variant="success"
-                size="sm"
-                icon={<ShieldCheck size={14} />}
-                onClick={handleUnsuspend}
-              >
-                Unsuspend
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<ShieldOff size={14} />}
-                onClick={() => setShowSuspend(true)}
-                className="text-brand-orange hover:text-brand-orange"
-              >
-                Suspend
-              </Button>
-            )}
-            <Button
-              variant="danger"
-              size="sm"
-              icon={<ShieldBan size={14} />}
-              onClick={() => setShowBlock(true)}
+        <div className="flex items-center gap-2">
+          {isBlocked ? (
+            // Blocked partner — only show Unblock
+            <button
+              onClick={handleUnblock}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-green-muted text-brand-green hover:bg-brand-green/20 transition-colors"
             >
-              Block
-            </Button>
-          </div>
-        )}
+              <ShieldCheck size={16} />
+              Unblock Partner
+            </button>
+          ) : (
+            <>
+              {isSuspended ? (
+                <button
+                  onClick={handleUnsuspend}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-green-muted text-brand-green hover:bg-brand-green/20 transition-colors"
+                >
+                  <ShieldCheck size={16} />
+                  Unsuspend
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowSuspend(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-orange-muted text-brand-orange hover:bg-brand-orange/20 transition-colors"
+                >
+                  <ShieldOff size={16} />
+                  Suspend
+                </button>
+              )}
+              <button
+                onClick={() => setShowBlock(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-red-muted text-brand-red hover:bg-brand-red/20 transition-colors"
+              >
+                <ShieldBan size={16} />
+                Block
+              </button>
+            </>
+          )}
+        </div>
       </motion.div>
 
       {/* ── Profile Card ─────────────────────────────── */}

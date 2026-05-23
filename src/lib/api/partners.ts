@@ -67,6 +67,11 @@ export const partnersApi = {
     return response.data;
   },
 
+  unblock: async (id: string) => {
+    const response = await apiClient.post(`/admin/partners/${id}/unblock`);
+    return response.data;
+  },
+
   approveKyc: async (userId: string, note?: string) => {
     const response = await apiClient.post(
       `/admin/kyc/${userId}/approve`,
