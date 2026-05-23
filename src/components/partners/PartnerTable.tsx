@@ -15,7 +15,7 @@ import { StatusBadge, Badge } from "@/components/ui/Badge";
 import { TableRowSkeleton } from "@/components/ui/SkeletonLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pagination } from "@/components/ui/Pagination";
-import { formatDate, formatRelative, cn } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import type { Partner } from "@/types/partner";
 
 interface PartnerTableProps {
@@ -163,18 +163,17 @@ export function PartnerTable({
               <th>KYC</th>
               <th>Wallet</th>
               <th>Joined</th>
-              <th>Last Active</th>
               <th className="pr-5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <TableRowSkeleton key={i} cols={8} />
+                <TableRowSkeleton key={i} cols={7} />
               ))
             ) : partners.length === 0 ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={7}>
                   <EmptyState
                     title="No partners found"
                     description="Try adjusting your search or filters"
@@ -256,15 +255,6 @@ export function PartnerTable({
                   <td>
                     <span className="text-[12px] text-light-text-2 dark:text-dark-text-2">
                       {formatDate(partner.createdAt)}
-                    </span>
-                  </td>
-
-                  {/* Last active */}
-                  <td>
-                    <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
-                      {partner.lastLoginAt
-                        ? formatRelative(partner.lastLoginAt)
-                        : "Never"}
                     </span>
                   </td>
 

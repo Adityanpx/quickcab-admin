@@ -21,9 +21,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { formatRelative } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
-  { value: "KYC_PENDING", label: "Pending" },
-  { value: "KYC_IN_PROGRESS", label: "In Review" },
-  { value: "KYC_REJECTED", label: "Rejected" },
+  { value: "PENDING",  label: "Submitted — Awaiting Review" },
+  { value: "REJECTED", label: "Rejected" },
   { value: "APPROVED", label: "Approved" },
 ];
 
@@ -96,9 +95,7 @@ export default function KycQueuePage() {
   const pagination = data?.pagination;
 
   // Stats
-  const pendingCount = items.filter((i) =>
-    ["KYC_PENDING", "KYC_IN_PROGRESS"].includes(i.kycStatus)
-  ).length;
+  const pendingCount = items.filter((i) => i.kycStatus === "PENDING").length;
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -269,7 +266,7 @@ export default function KycQueuePage() {
                           </Link>
 
                           {/* Approve / Reject (only for pending) */}
-                          {["KYC_PENDING", "KYC_IN_PROGRESS"].includes(item.kycStatus) && (
+                          {item.kycStatus === "PENDING" && (
                             <>
                               <Button
                                 variant="danger"
