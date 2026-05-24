@@ -14,13 +14,13 @@ interface CancelBookingModalProps {
   loading?: boolean;
 }
 
-const CANCEL_REASONS = [
+// Quick-fill preset reasons — clicking one fills the textarea, admin can then edit
+const REASON_PRESETS = [
   "Duplicate booking",
   "Customer request",
   "Partner unavailable",
-  "Fake/fraudulent booking",
-  "Booking error",
-  "Other",
+  "Fraudulent/fake booking",
+  "Booking posted in error",
 ];
 
 export function CancelBookingModal({
@@ -30,23 +30,24 @@ export function CancelBookingModal({
   booking,
   loading,
 }: CancelBookingModalProps) {
-  const [selectedReason, setSelectedReason] = useState("");
-  const [customReason, setCustomReason] = useState("");
+  const [reason, setReason] = useState("");
   const [error, setError] = useState("");
 
   const handleConfirm = () => {
-    const finalReason =
-      selectedReason === "Other" ? customReason.trim() : selectedReason;
-    if (!finalReason) {
-      setError("Please select or enter a reason");
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      setError("Please provide a reason — the partner will see this");
       return;
     }
-    onConfirm(finalReason);
+    if (trimmed.length < 10) {
+      setError("Reason must be at least 10 characters");
+      return;
+    }
+    onConfirm(trimmed);
   };
 
   const handleClose = () => {
-    setSelectedReason("");
-    setCustomReason("");
+    setReason("");
     setError("");
     onClose();
   };
@@ -86,51 +87,56 @@ export function CancelBookingModal({
           </div>
         )}
 
-        {/* Warning */}
-        <div className="px-3 py-2.5 rounded-xl bg-brand-red-muted border border-brand-red/20">
-          <p className="text-[12px] text-brand-red">
-            This will cancel the booking immediately. Both partners will be notified.
+        {/* Partner visibility warning */}
+        <div className="px-3 py-2.5 rounded-xl bg-brand-orange-muted border border-brand-orange/20">
+          <p className="text-[12px] text-brand-orange font-medium">
+            ⚠️ The partner who posted this booking will see the reason you write below.
+            Write clearly so they understand why their booking was cancelled.
           </p>
         </div>
 
-        {/* Reason pills */}
+        {/* Quick-fill preset pills */}
         <div>
-          <p className="text-sm font-medium text-light-text dark:text-dark-text mb-2">
-            Reason <span className="text-brand-red">*</span>
+          <p className="text-[12px] font-medium text-light-text-2 dark:text-dark-text-2 mb-2">
+            Quick fill (click to use, then edit if needed):
           </p>
-          <div className="flex flex-wrap gap-2">
-            {CANCEL_REASONS.map((r) => (
+          <div className="flex flex-wrap gap-1.5">
+            {REASON_PRESETS.map((preset) => (
               <button
-                key={r}
-                onClick={() => { setSelectedReason(r); setError(""); }}
+                key={preset}
+                onClick={() => { setReason(preset); setError(""); }}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-[12px] font-medium border transition-all duration-150",
-                  selectedReason === r
+                  "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-150",
+                  reason === preset
                     ? "bg-brand-purple text-white border-brand-purple"
                     : "border-light-border dark:border-dark-border text-light-text-2 dark:text-dark-text-2 hover:border-brand-purple hover:text-brand-purple"
                 )}
               >
-                {r}
+                {preset}
               </button>
             ))}
           </div>
-          {error && (
-            <p className="text-xs text-brand-red mt-1.5">{error}</p>
-          )}
         </div>
 
-        {/* Custom reason if "Other" */}
-        {selectedReason === "Other" && (
-          <div>
-            <textarea
-              rows={3}
-              value={customReason}
-              onChange={(e) => setCustomReason(e.target.value)}
-              placeholder="Describe the reason..."
-              className="input-base resize-none text-sm"
-            />
-          </div>
-        )}
+        {/* Mandatory reason textarea */}
+        <div>
+          <label className="block text-[12px] font-medium text-light-text dark:text-dark-text mb-1.5">
+            Cancellation reason <span className="text-brand-red">*</span>
+          </label>
+          <textarea
+            rows={3}
+            value={reason}
+            onChange={(e) => { setReason(e.target.value); setError(""); }}
+            placeholder="Describe exactly why this booking is being cancelled..."
+            className={cn(
+              "input-base resize-none text-sm w-full",
+              error && "border-brand-red focus:border-brand-red"
+            )}
+          />
+          {error && (
+            <p className="text-xs text-brand-red mt-1">{error}</p>
+          )}
+        </div>
       </div>
     </Modal>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Eye,
@@ -151,6 +152,8 @@ export function PartnerTable({
   onUnsuspend,
   onUnblock,
 }: PartnerTableProps) {
+  const router = useRouter();
+
   return (
     <div className="card p-0 overflow-hidden">
       <div className="overflow-x-auto">
@@ -159,6 +162,8 @@ export function PartnerTable({
             <tr>
               <th className="pl-5">Partner</th>
               <th>Type</th>
+              <th>Contact & Location</th>
+              <th>Business</th>
               <th>Status</th>
               <th>KYC</th>
               <th>Wallet</th>
@@ -169,11 +174,11 @@ export function PartnerTable({
           <tbody>
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <TableRowSkeleton key={i} cols={7} />
+                <TableRowSkeleton key={i} cols={9} />
               ))
             ) : partners.length === 0 ? (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={9}>
                   <EmptyState
                     title="No partners found"
                     description="Try adjusting your search or filters"
@@ -187,16 +192,18 @@ export function PartnerTable({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03, duration: 0.25 }}
-                  className="group"
+                  className="group cursor-pointer hover:bg-light-surface-2 dark:hover:bg-dark-surface transition-colors"
+                  onClick={() => router.push(`/partners/${partner.id}`)}
                 >
                   {/* Partner name + mobile */}
-                  <td className="pl-5">
+                  <td className="pl-5" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-3">
                       <Avatar name={partner.name} size="sm" />
                       <div className="min-w-0">
                         <Link
                           href={`/partners/${partner.id}`}
                           className="text-[13px] font-medium text-light-text dark:text-dark-text hover:text-brand-purple transition-colors truncate block"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {partner.name}
                         </Link>
@@ -222,9 +229,42 @@ export function PartnerTable({
                           : "Vendor"}
                       </Badge>
                     ) : (
-                      <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
-                        —
+                      <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">—</span>
+                    )}
+                  </td>
+
+                  {/* Email + City */}
+                  <td>
+                    <div className="min-w-0">
+                      {partner.partnerProfile?.email ? (
+                        <p className="text-[12px] text-light-text dark:text-dark-text truncate max-w-[160px]">
+                          {partner.partnerProfile.email}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 italic">
+                          No email
+                        </p>
+                      )}
+                      {partner.partnerProfile?.city ? (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
+                          📍 {partner.partnerProfile.city}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5 italic">
+                          No city
+                        </p>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Business Name (Vendor only) */}
+                  <td>
+                    {partner.kycRecord?.businessName ? (
+                      <span className="text-[12px] text-light-text dark:text-dark-text">
+                        {partner.kycRecord.businessName}
                       </span>
+                    ) : (
+                      <span className="text-[11px] text-light-text-3 dark:text-dark-text-3">—</span>
                     )}
                   </td>
 
@@ -258,8 +298,8 @@ export function PartnerTable({
                     </span>
                   </td>
 
-                  {/* Actions */}
-                  <td className="pr-5 text-right">
+                  {/* Actions — stopPropagation so the row click doesn't fire */}
+                  <td className="pr-5 text-right" onClick={(e) => e.stopPropagation()}>
                     <ActionMenu
                       partner={partner}
                       onSuspend={onSuspend}

@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { Users, UserCheck, UserX, Clock } from "lucide-react";
-import { usePartners, useSuspendPartner } from "@/lib/hooks/usePartners";
+import { usePartners, useSuspendPartner, usePartnerCities } from "@/lib/hooks/usePartners";
 import { partnersApi } from "@/lib/api/partners";
 import { PartnerFilters } from "@/components/partners/PartnerFilters";
 import { PartnerTable } from "@/components/partners/PartnerTable";
@@ -33,20 +33,28 @@ export default function PartnersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [subType, setSubType] = useState("");
+  const [city, setCity] = useState("");
   const [isExporting, setIsExporting] = useState(false);
 
   // ── Modal state ───────────────────────────────────────
   const [suspendTarget, setSuspendTarget] = useState<Partner | null>(null);
   const [blockTarget, setBlockTarget] = useState<Partner | null>(null);
   const [unsuspendTarget, setUnsuspendTarget] = useState<Partner | null>(null);
+  const [isUnsuspending, setIsUnsuspending] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [isUnblocking, setIsUnblocking] = useState(false);
 
   // ── Data ─────────────────────────────────────────────
+  const { data: citiesData } = usePartnerCities();
+  const cities = citiesData ?? [];
+
   const { data, isLoading } = usePartners({
     page,
     limit: 15,
     search: search || undefined,
     status: (status as Partner["status"]) || undefined,
     subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
+    city: city || undefined,
   });
 
   const suspendMutation = useSuspendPartner();
@@ -67,6 +75,11 @@ export default function PartnersPage() {
     setPage(1);
   }, []);
 
+  const handleCityChange = useCallback((v: string) => {
+    setCity(v);
+    setPage(1);
+  }, []);
+
   const handleSuspendConfirm = async (formData: SuspendPartnerPayload) => {
     if (!suspendTarget) return;
     await suspendMutation.mutateAsync({
@@ -77,36 +90,45 @@ export default function PartnersPage() {
   };
 
   const handleUnblock = async (partner: Partner) => {
+    setIsUnblocking(true);
     try {
       await partnersApi.unblock(partner.id);
-      toast.success(`${partner.name} has been unblocked`);
+      toast.success(`${partner.name} has been unblocked successfully`);
       qc.invalidateQueries({ queryKey: ["partners"] });
     } catch {
-      toast.error('Failed to unblock partner');
+      toast.error("Failed to unblock partner. Please try again.");
+    } finally {
+      setIsUnblocking(false);
     }
   };
 
   const handleBlockConfirm = async (reason: string) => {
     if (!blockTarget) return;
+    setIsBlocking(true);
     try {
       await partnersApi.block(blockTarget.id, reason);
       qc.invalidateQueries({ queryKey: ["partners"] });
-      toast.success("Partner blocked");
+      toast.success(`${blockTarget.name} has been blocked permanently`);
       setBlockTarget(null);
     } catch {
-      toast.error("Failed to block partner");
+      toast.error("Failed to block partner. Please try again.");
+    } finally {
+      setIsBlocking(false);
     }
   };
 
   const handleUnsuspendConfirm = async () => {
     if (!unsuspendTarget) return;
+    setIsUnsuspending(true);
     try {
       await partnersApi.unsuspend(unsuspendTarget.id);
       qc.invalidateQueries({ queryKey: ["partners"] });
-      toast.success("Partner unsuspended");
+      toast.success(`${unsuspendTarget.name} has been unsuspended successfully`);
       setUnsuspendTarget(null);
     } catch {
-      toast.error("Failed to unsuspend partner");
+      toast.error("Failed to unsuspend partner. Please try again.");
+    } finally {
+      setIsUnsuspending(false);
     }
   };
 
@@ -229,6 +251,9 @@ export default function PartnersPage() {
           onStatusChange={handleStatusChange}
           subType={subType}
           onSubTypeChange={handleSubTypeChange}
+          city={city}
+          onCityChange={handleCityChange}
+          cities={cities}
           onExport={handleExport}
           isExporting={isExporting}
         />
@@ -262,6 +287,7 @@ export default function PartnersPage() {
         onClose={() => setBlockTarget(null)}
         onConfirm={handleBlockConfirm}
         partner={blockTarget}
+        loading={isBlocking}
       />
 
       <ConfirmModal
@@ -272,6 +298,7 @@ export default function PartnersPage() {
         description="This partner will be able to access the app again immediately."
         confirmLabel="Yes, Unsuspend"
         variant="warning"
+        loading={isUnsuspending}
       />
     </div>
   );

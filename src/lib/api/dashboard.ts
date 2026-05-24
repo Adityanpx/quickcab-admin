@@ -36,4 +36,20 @@ export const dashboardApi = {
     );
     return response.data.data;
   },
+
+  getAdminNotifications: async (): Promise<{
+    notifications: {
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      count: number;
+      link: string;
+      severity: "info" | "warning" | "critical";
+    }[];
+    totalUnread: number;
+  }> => {
+    const response = await apiClient.get("/admin/notifications");
+    return response.data.data;
+  },
 };

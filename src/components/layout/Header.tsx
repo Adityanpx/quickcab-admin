@@ -11,6 +11,7 @@ import { authApi } from "@/lib/api/auth";
 import { getInitials } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { useAdminNotifications } from "@/lib/hooks/useDashboard";
 
 const dropdownVariants = {
   hidden: { opacity: 0, y: -8, scale: 0.96 },
@@ -28,13 +29,6 @@ const dropdownVariants = {
   },
 };
 
-// Mock notifications — replace with real API call later
-const mockNotifications = [
-  { id: "1", title: "KYC Pending", message: "23 KYC requests awaiting review", time: "2m ago", unread: true },
-  { id: "2", title: "Withdrawal Request", message: "₹2,500 withdrawal by Rahul Sharma", time: "15m ago", unread: true },
-  { id: "3", title: "Low Rating Alert", message: "Partner flagged: 1.8 avg rating", time: "1h ago", unread: true },
-];
-
 interface HeaderProps {
   onMenuClick: () => void;
 }
@@ -43,6 +37,9 @@ export function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { admin, logout } = useAuthStore();
+  const { data: notifData } = useAdminNotifications();
+  const notifications = notifData?.notifications ?? [];
+  const unreadCount = notifData?.totalUnread ?? 0;
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -159,14 +156,17 @@ export function Header({ onMenuClick }: HeaderProps) {
             )}
           >
             <Bell size={17} />
-            {/* Unread badge */}
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-brand-red text-white text-[9px] font-bold flex items-center justify-center"
-            >
-              {mockNotifications.filter((n) => n.unread).length}
-            </motion.span>
+            {/* Unread badge — only show when there are real notifications */}
+            {unreadCount > 0 && (
+              <motion.span
+                key={unreadCount}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-brand-red text-white text-[9px] font-bold flex items-center justify-center"
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </motion.span>
+            )}
           </motion.button>
 
           <AnimatePresence>
@@ -189,36 +189,66 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </p>
                 </div>
                 <div className="divide-y divide-light-border dark:divide-dark-border">
-                  {mockNotifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={cn(
-                        "px-4 py-3 hover:bg-light-surface-2 dark:hover:bg-dark-surface-2 cursor-pointer transition-colors",
-                        n.unread && "bg-brand-purple-muted/30 dark:bg-brand-purple-muted-dark/30"
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        {n.unread && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-brand-purple mt-1.5 shrink-0" />
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-6 text-center">
+                      <p className="text-[13px] text-light-text-3 dark:text-dark-text-3">
+                        All caught up! No pending actions.
+                      </p>
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          setShowNotifications(false);
+                          router.push(n.link);
+                        }}
+                        className={cn(
+                          "px-4 py-3 hover:bg-light-surface-2 dark:hover:bg-dark-surface-2 cursor-pointer transition-colors",
+                          n.severity === "critical" && "bg-brand-red-muted/20 dark:bg-brand-red-muted/10",
+                          n.severity === "warning" && "bg-brand-orange-muted/20 dark:bg-brand-orange-muted/10",
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium text-light-text dark:text-dark-text">
-                            {n.title}
-                          </p>
-                          <p className="text-[12px] text-light-text-2 dark:text-dark-text-2 mt-0.5 truncate">
-                            {n.message}
-                          </p>
-                          <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1">
-                            {n.time}
-                          </p>
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Severity dot */}
+                          <div className={cn(
+                            "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
+                            n.severity === "critical" && "bg-brand-red",
+                            n.severity === "warning" && "bg-brand-orange",
+                            n.severity === "info" && "bg-brand-purple",
+                          )} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[13px] font-semibold text-light-text dark:text-dark-text truncate">
+                                {n.title}
+                              </p>
+                              <span className={cn(
+                                "text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0",
+                                n.severity === "critical" && "bg-brand-red/10 text-brand-red",
+                                n.severity === "warning" && "bg-brand-orange/10 text-brand-orange",
+                                n.severity === "info" && "bg-brand-purple/10 text-brand-purple",
+                              )}>
+                                {n.count}
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-light-text-2 dark:text-dark-text-2 mt-0.5 leading-relaxed">
+                              {n.message}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
                 <div className="px-4 py-2.5 border-t border-light-border dark:border-dark-border">
-                  <button className="text-[13px] font-medium text-brand-purple hover:underline">
-                    View all notifications
+                  <button
+                    onClick={() => {
+                      setShowNotifications(false);
+                      router.push("/kyc");
+                    }}
+                    className="text-[13px] font-medium text-brand-purple hover:underline"
+                  >
+                    View KYC queue →
                   </button>
                 </div>
               </motion.div>

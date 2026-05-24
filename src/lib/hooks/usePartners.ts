@@ -20,6 +20,14 @@ export function usePartner(id: string) {
   });
 }
 
+export function usePartnerCities() {
+  return useQuery({
+    queryKey: ["partners", "cities"],
+    queryFn: () => partnersApi.getCities(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useKycQueue(params = {}) {
   return useQuery({
     queryKey: ["kyc", "queue", params],
@@ -98,6 +106,47 @@ export function useReviewDocument() {
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.message ?? "Failed to review document";
+      toast.error(msg);
+    },
+  });
+}
+
+// Hook for admin uploading/replacing a KYC document image
+// Handles the two-step flow: get presigned URL → upload to R2 → save fileKey to DB
+export function useAdminUploadKycDoc() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      fieldKey,
+      file,
+    }: {
+      userId: string;
+      fieldKey: string;
+      file: File;
+    }) => {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const { uploadUrl, fileKey } = await partnersApi.getKycDocUploadUrl(fieldKey, ext);
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+      }
+
+      await partnersApi.saveKycDocImage(userId, fieldKey, fileKey);
+    },
+    onSuccess: (_, { userId }) => {
+      qc.invalidateQueries({ queryKey: ["partners", userId] });
+      qc.invalidateQueries({ queryKey: ["kyc"] });
+      toast.success("Document image uploaded successfully");
+    },
+    onError: (error: any) => {
+      const msg = error?.message ?? "Failed to upload document image";
       toast.error(msg);
     },
   });

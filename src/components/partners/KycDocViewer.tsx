@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, ZoomIn, ZoomOut, RotateCw, Download, FileX, CheckCircle, XCircle,
-  AlertCircle, RefreshCw,
+  AlertCircle, RefreshCw, Upload, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +20,11 @@ export interface DocItem {
 
 interface KycDocViewerProps {
   docs: DocItem[];
+  userId?: string;
   onApproveDoc?: (fieldKey: string) => void;
   onRejectDoc?: (fieldKey: string, reason: string) => void;
+  onUploadDoc?: (fieldKey: string, file: File) => void;
+  uploadingField?: string | null;
   loading?: boolean;
 }
 
@@ -31,12 +34,16 @@ function DocCard({
   onView,
   onApprove,
   onReject,
+  onUpload,
+  isUploading,
   loading,
 }: {
   doc: DocItem;
   onView: (url: string, label: string) => void;
   onApprove?: (fieldKey: string) => void;
   onReject?: (fieldKey: string) => void;
+  onUpload?: (fieldKey: string, file: File) => void;
+  isUploading?: boolean;
   loading?: boolean;
 }) {
   console.log(`[KYC_DOC] Rendering doc: ${doc.label}`);
@@ -74,6 +81,32 @@ function DocCard({
             Not uploaded
           </p>
         </div>
+        {onUpload && (
+          <label className={cn(
+            "mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer",
+            "text-[11px] font-semibold text-brand-purple",
+            "bg-brand-purple-muted dark:bg-brand-purple-muted-dark",
+            "hover:bg-brand-purple/20 transition-colors",
+            isUploading && "opacity-50 pointer-events-none"
+          )}>
+            {isUploading ? (
+              <><Loader2 size={11} className="animate-spin" /> Uploading...</>
+            ) : (
+              <><Upload size={11} /> Add Image</>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png"
+              className="sr-only"
+              disabled={isUploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload(doc.fieldKey, file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        )}
       </div>
     );
   }
@@ -151,7 +184,7 @@ function DocCard({
 
       {/* Per-document action buttons */}
       {(onApprove || onReject) && doc.status !== "APPROVED" && (
-        <div className="px-3 pb-3 flex gap-2">
+        <div className="px-3 pb-2 flex gap-2">
           {onApprove && (
             <button
               onClick={() => onApprove(doc.fieldKey)}
@@ -180,6 +213,38 @@ function DocCard({
           )}
         </div>
       )}
+
+      {/* Admin upload/replace image button — always shown when onUpload is provided */}
+      {onUpload && (
+        <div className="px-3 pb-3">
+          <label className={cn(
+            "flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg cursor-pointer",
+            "text-[11px] font-semibold",
+            "border border-light-border dark:border-dark-border",
+            "text-light-text-2 dark:text-dark-text-2",
+            "hover:bg-light-surface-2 dark:hover:bg-dark-surface hover:border-brand-purple hover:text-brand-purple",
+            "transition-colors",
+            isUploading && "opacity-50 pointer-events-none"
+          )}>
+            {isUploading ? (
+              <><Loader2 size={11} className="animate-spin" /> Uploading...</>
+            ) : (
+              <><Upload size={11} /> {doc.url ? "Replace Image" : "Upload Image"}</>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png"
+              className="sr-only"
+              disabled={isUploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload(doc.fieldKey, file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }
@@ -187,8 +252,11 @@ function DocCard({
 // ─── Main KycDocViewer ────────────────────────────────────
 export function KycDocViewer({
   docs,
+  userId,
   onApproveDoc,
   onRejectDoc,
+  onUploadDoc,
+  uploadingField,
   loading,
 }: KycDocViewerProps) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -236,6 +304,8 @@ export function KycDocViewer({
                   }
                 : undefined
             }
+            onUpload={onUploadDoc}
+            isUploading={uploadingField === doc.fieldKey}
             loading={loading}
           />
         ))}

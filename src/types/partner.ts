@@ -7,6 +7,8 @@ export interface PartnerProfile {
   areasOfInterest: string[];
   rating: number;
   totalRatings: number;
+  city: string | null;
+  email: string | null;
 }
 
 export interface KycRecord {

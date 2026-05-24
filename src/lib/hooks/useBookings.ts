@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { bookingsApi } from "@/lib/api/bookings";
+import { partnersApi } from "@/lib/api/partners";
 import type { BookingListFilters } from "@/types/booking";
 
 export function useBookings(filters: BookingListFilters = {}) {
@@ -18,11 +19,12 @@ export function useBooking(id: string) {
   });
 }
 
-// Partner-specific bookings — uses same endpoint with partnerId filter
+// Partner-specific bookings — uses dedicated endpoint that works for all statuses
+// (including suspended/blocked partners) via GET /admin/partners/:userId/bookings
 export function usePartnerBookings(partnerId: string, page = 1) {
   return useQuery({
     queryKey: ["bookings", "partner", partnerId, page],
-    queryFn: () => bookingsApi.getAll({ page, limit: 10, partnerId }),
+    queryFn: () => partnersApi.getBookings(partnerId, { page, limit: 10 }),
     enabled: !!partnerId,
     staleTime: 30 * 1000,
   });

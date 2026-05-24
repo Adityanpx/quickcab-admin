@@ -158,4 +158,55 @@ export const partnersApi = {
     );
     return response.data;
   },
+
+  getBookings: async (
+    userId: string,
+    params: { page?: number; limit?: number } = {}
+  ): Promise<{ items: import("@/types/booking").Booking[]; pagination: any }> => {
+    const response = await apiClient.get(
+      `/admin/partners/${userId}/bookings`,
+      { params }
+    );
+    return {
+      items: response.data.data || [],
+      pagination: response.data.pagination,
+    };
+  },
+
+  getKycDocUploadUrl: async (
+    fieldKey: string,
+    fileExtension: string
+  ): Promise<{ uploadUrl: string; fileKey: string; publicUrl: string }> => {
+    const categoryMap: Record<string, string> = {
+      aadhaarFront:   "kyc-aadhaar-front",
+      aadhaarBack:    "kyc-aadhaar-back",
+      drivingLicence: "kyc-driving-licence",
+      selfie:         "kyc-selfie",
+      businessDoc:    "kyc-business-doc",
+    };
+    const category = categoryMap[fieldKey];
+    if (!category) throw new Error(`Unknown fieldKey: ${fieldKey}`);
+
+    const response = await apiClient.post("/upload/presigned-url-admin", {
+      category,
+      fileExtension,
+    });
+    return response.data.data;
+  },
+
+  saveKycDocImage: async (
+    userId: string,
+    fieldKey: string,
+    fileKey: string
+  ): Promise<void> => {
+    await apiClient.patch(`/admin/kyc/${userId}/document-image`, {
+      fieldKey,
+      fileKey,
+    });
+  },
+
+  getCities: async (): Promise<{ city: string; count: number }[]> => {
+    const response = await apiClient.get("/admin/partners/cities");
+    return response.data.data || [];
+  },
 };

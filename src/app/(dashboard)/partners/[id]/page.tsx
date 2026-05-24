@@ -27,6 +27,7 @@ import {
   useApproveKyc,
   useRejectKyc,
   useReviewDocument,
+  useAdminUploadKycDoc,
 } from "@/lib/hooks/usePartners";
 import { usePartnerBookings } from "@/lib/hooks/useBookings";
 import { partnersApi } from "@/lib/api/partners";
@@ -72,6 +73,9 @@ export default function PartnerDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [showSuspend, setShowSuspend] = useState(false);
   const [showBlock, setShowBlock] = useState(false);
+  const [isUnsuspending, setIsUnsuspending] = useState(false);
+  const [isUnblocking, setIsUnblocking] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
   const [rejectNoteOpen, setRejectNoteOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
   const [bookingPage, setBookingPage] = useState(1);
@@ -81,6 +85,8 @@ export default function PartnerDetailPage() {
   const approveKycMutation = useApproveKyc();
   const rejectKycMutation = useRejectKyc();
   const reviewDocMutation = useReviewDocument();
+  const uploadKycDocMutation = useAdminUploadKycDoc();
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
   const { data: bookingsData, isLoading: bookingsLoading } = usePartnerBookings(partner?.id ?? "", bookingPage);
 
   if (isLoading) return <DashboardSkeleton />;
@@ -161,33 +167,42 @@ export default function PartnerDetailPage() {
   };
 
   const handleBlock = async (reason: string) => {
+    setIsBlocking(true);
     try {
       await partnersApi.block(partner.id, reason);
       qc.invalidateQueries({ queryKey: ["partners"] });
-      toast.success("Partner blocked permanently");
+      toast.success(`${partner.name} has been blocked permanently`);
       setShowBlock(false);
     } catch {
-      toast.error("Failed to block partner");
+      toast.error("Failed to block partner. Please try again.");
+    } finally {
+      setIsBlocking(false);
     }
   };
 
   const handleUnsuspend = async () => {
+    setIsUnsuspending(true);
     try {
       await partnersApi.unsuspend(partner.id);
       qc.invalidateQueries({ queryKey: ["partners"] });
-      toast.success("Partner unsuspended");
+      toast.success(`${partner.name} has been unsuspended successfully`);
     } catch {
-      toast.error("Failed to unsuspend");
+      toast.error("Failed to unsuspend partner. Please try again.");
+    } finally {
+      setIsUnsuspending(false);
     }
   };
 
   const handleUnblock = async () => {
+    setIsUnblocking(true);
     try {
       await partnersApi.unblock(partner.id);
-      toast.success('Partner unblocked successfully');
+      toast.success(`${partner.name} has been unblocked successfully`);
       qc.invalidateQueries({ queryKey: ["partners"] });
     } catch {
-      toast.error('Failed to unblock partner');
+      toast.error("Failed to unblock partner. Please try again.");
+    } finally {
+      setIsUnblocking(false);
     }
   };
 
@@ -300,6 +315,19 @@ export default function PartnerDetailPage() {
     await rejectKycMutation.mutateAsync({ userId: partner.id, payload });
   };
 
+  const handleUploadDoc = async (fieldKey: string, file: File) => {
+    setUploadingField(fieldKey);
+    try {
+      await uploadKycDocMutation.mutateAsync({
+        userId: partner.id,
+        fieldKey,
+        file,
+      });
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied`);
@@ -330,23 +358,27 @@ export default function PartnerDetailPage() {
         <div className="flex items-center gap-2">
           {isBlocked ? (
             // Blocked partner — only show Unblock
-            <button
+            <Button
+              variant="success"
+              size="sm"
+              icon={isUnblocking ? undefined : <ShieldCheck size={14} />}
               onClick={handleUnblock}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-green-muted text-brand-green hover:bg-brand-green/20 transition-colors"
+              loading={isUnblocking}
             >
-              <ShieldCheck size={16} />
-              Unblock Partner
-            </button>
+              {isUnblocking ? "Unblocking..." : "Unblock"}
+            </Button>
           ) : (
             <>
               {isSuspended ? (
-                <button
+                <Button
+                  variant="success"
+                  size="sm"
+                  icon={isUnsuspending ? undefined : <ShieldCheck size={14} />}
                   onClick={handleUnsuspend}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-green-muted text-brand-green hover:bg-brand-green/20 transition-colors"
+                  loading={isUnsuspending}
                 >
-                  <ShieldCheck size={16} />
-                  Unsuspend
-                </button>
+                  {isUnsuspending ? "Unsuspending..." : "Unsuspend"}
+                </Button>
               ) : (
                 <button
                   onClick={() => setShowSuspend(true)}
@@ -677,8 +709,11 @@ export default function PartnerDetailPage() {
 
                   <KycDocViewer
                     docs={kycDocs}
+                    userId={partner.id}
                     onApproveDoc={handleApproveDoc}
                     onRejectDoc={handleRejectDoc}
+                    onUploadDoc={handleUploadDoc}
+                    uploadingField={uploadingField}
                     loading={reviewDocMutation.isPending}
                   />
                 </>
@@ -818,6 +853,7 @@ export default function PartnerDetailPage() {
         onClose={() => setShowBlock(false)}
         onConfirm={handleBlock}
         partner={partner}
+        loading={isBlocking}
       />
 
       {/* KYC Reject Note Modal */}

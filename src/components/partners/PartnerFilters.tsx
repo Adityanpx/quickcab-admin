@@ -12,6 +12,9 @@ interface PartnerFiltersProps {
   onStatusChange: (v: string) => void;
   subType: string;
   onSubTypeChange: (v: string) => void;
+  city: string;
+  onCityChange: (v: string) => void;
+  cities: { city: string; count: number }[];
   onExport: () => void;
   isExporting?: boolean;
 }
@@ -38,6 +41,9 @@ export function PartnerFilters({
   onStatusChange,
   subType,
   onSubTypeChange,
+  city,
+  onCityChange,
+  cities,
   onExport,
   isExporting,
 }: PartnerFiltersProps) {
@@ -67,6 +73,18 @@ export function PartnerFilters({
         options={SUBTYPE_OPTIONS}
         placeholder="All Types"
         className="sm:w-40"
+      />
+
+      {/* City filter */}
+      <FilterSelect
+        value={city}
+        onChange={onCityChange}
+        options={cities.map((c) => ({
+          value: c.city,
+          label: `${c.city} (${c.count})`,
+        }))}
+        placeholder="All Cities"
+        className="sm:w-44"
       />
 
       {/* Spacer */}
