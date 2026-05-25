@@ -28,6 +28,7 @@ import {
   useRejectKyc,
   useReviewDocument,
   useAdminUploadKycDoc,
+  useDeletePartner,
 } from "@/lib/hooks/usePartners";
 import { usePartnerBookings } from "@/lib/hooks/useBookings";
 import { partnersApi } from "@/lib/api/partners";
@@ -35,6 +36,7 @@ import type { KycRejectPayload } from "@/lib/api/partners";
 import { KycDocViewer, KycActionBar } from "@/components/partners/KycDocViewer";
 import { SuspendModal } from "@/components/partners/SuspendModal";
 import { BlockModal } from "@/components/partners/BlockModal";
+import { DeleteUserModal } from "@/components/partners/DeleteUserModal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge, StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -73,6 +75,8 @@ export default function PartnerDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [showSuspend, setShowSuspend] = useState(false);
   const [showBlock, setShowBlock] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isUnsuspending, setIsUnsuspending] = useState(false);
   const [isUnblocking, setIsUnblocking] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
@@ -86,6 +90,7 @@ export default function PartnerDetailPage() {
   const rejectKycMutation = useRejectKyc();
   const reviewDocMutation = useReviewDocument();
   const uploadKycDocMutation = useAdminUploadKycDoc();
+  const deleteMutation = useDeletePartner();
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const { data: bookingsData, isLoading: bookingsLoading } = usePartnerBookings(partner?.id ?? "", bookingPage);
 
@@ -328,6 +333,19 @@ export default function PartnerDetailPage() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    setIsDeletingUser(true);
+    try {
+      await deleteMutation.mutateAsync(partner.id);
+      setShowDelete(false);
+      router.push("/partners");
+    } catch {
+      // error toast handled by the mutation's onError
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied`);
@@ -397,6 +415,19 @@ export default function PartnerDetailPage() {
               </button>
             </>
           )}
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-light-border dark:bg-dark-border" />
+
+          {/* Delete user — always visible regardless of status */}
+          <Button
+            variant="danger"
+            size="sm"
+            className="!bg-brand-red !text-white hover:!bg-red-700"
+            onClick={() => setShowDelete(true)}
+          >
+            Delete User
+          </Button>
         </div>
       </motion.div>
 
@@ -854,6 +885,14 @@ export default function PartnerDetailPage() {
         onConfirm={handleBlock}
         partner={partner}
         loading={isBlocking}
+      />
+
+      <DeleteUserModal
+        isOpen={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDeleteUser}
+        partner={partner}
+        loading={isDeletingUser}
       />
 
       {/* KYC Reject Note Modal */}

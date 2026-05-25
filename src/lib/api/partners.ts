@@ -209,4 +209,8 @@ export const partnersApi = {
     const response = await apiClient.get("/admin/partners/cities");
     return response.data.data || [];
   },
+
+  deleteUser: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/partners/${id}`);
+  },
 };

@@ -111,6 +111,18 @@ export function useReviewDocument() {
   });
 }
 
+export function useDeletePartner() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => partnersApi.deleteUser(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["partners"] });
+      toast.success("User and all associated data deleted permanently");
+    },
+    onError: () => toast.error("Failed to delete user. Please try again."),
+  });
+}
+
 // Hook for admin uploading/replacing a KYC document image
 // Handles the two-step flow: get presigned URL → upload to R2 → save fileKey to DB
 export function useAdminUploadKycDoc() {
