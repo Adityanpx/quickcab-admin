@@ -10,6 +10,7 @@ import {
   Megaphone,
   Ticket,
   Settings,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 
@@ -80,5 +81,10 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Settings",
     href: "/settings",
     icon: Settings,
+  },
+  {
+    label: "SubAdmin Logs",
+    href: "/subadmin-logs",
+    icon: Activity,
   },
 ];

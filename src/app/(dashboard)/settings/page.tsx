@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { settingsApi } from "@/lib/api/settings";
 import { SystemConfigForm } from "@/components/settings/SystemConfigForm";
+import { SubAdminSettingsCard } from "@/components/settings/SubAdminSettingsCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DashboardSkeleton } from "@/components/ui/SkeletonLoader";
 import toast from "react-hot-toast";
@@ -50,6 +51,8 @@ export default function SettingsPage() {
       >
         <SystemConfigForm configs={configs ?? []} onSave={handleSave} />
       </motion.div>
+
+      <SubAdminSettingsCard />
     </div>
   );
 }
