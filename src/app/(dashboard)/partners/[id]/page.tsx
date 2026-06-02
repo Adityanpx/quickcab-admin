@@ -127,18 +127,14 @@ export default function PartnerDetailPage() {
           rejectReason: kycRecord.aadhaarRejectReason ?? null,
           isResubmitted: resubmittedSet.has("aadhaarBack"),
         },
-        ...(kycRecord.drivingLicenceUrl
-          ? [
-              {
-                label: "Driving Licence",
-                fieldKey: "drivingLicence",
-                url: kycRecord.drivingLicenceUrl,
-                status: kycRecord.drivingLicenceStatus ?? "PENDING",
-                rejectReason: kycRecord.drivingLicenceRejectReason ?? null,
-                isResubmitted: resubmittedSet.has("drivingLicence"),
-              },
-            ]
-          : []),
+        {
+          label: "Driving Licence",
+          fieldKey: "drivingLicence",
+          url: kycRecord.drivingLicenceUrl ?? null,
+          status: kycRecord.drivingLicenceStatus ?? "PENDING",
+          rejectReason: kycRecord.drivingLicenceRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("drivingLicence"),
+        },
         {
           label: "Selfie",
           fieldKey: "selfie",
@@ -147,18 +143,14 @@ export default function PartnerDetailPage() {
           rejectReason: kycRecord.selfieRejectReason ?? null,
           isResubmitted: resubmittedSet.has("selfie"),
         },
-        ...(kycRecord.businessDocUrl
-          ? [
-              {
-                label: "Business Document",
-                fieldKey: "businessDoc",
-                url: kycRecord.businessDocUrl,
-                status: kycRecord.businessDocStatus ?? "PENDING",
-                rejectReason: kycRecord.businessDocRejectReason ?? null,
-                isResubmitted: resubmittedSet.has("businessDoc"),
-              },
-            ]
-          : []),
+        {
+          label: "Business Document",
+          fieldKey: "businessDoc",
+          url: kycRecord.businessDocUrl ?? null,
+          status: kycRecord.businessDocStatus ?? "PENDING",
+          rejectReason: kycRecord.businessDocRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("businessDoc"),
+        },
       ]
     : [];
 

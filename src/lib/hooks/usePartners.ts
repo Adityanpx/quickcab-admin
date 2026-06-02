@@ -138,7 +138,7 @@ export function useAdminUploadKycDoc() {
       file: File;
     }) => {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const { uploadUrl, fileKey } = await partnersApi.getKycDocUploadUrl(fieldKey, ext);
+      const { uploadUrl, publicUrl } = await partnersApi.getKycDocUploadUrl(fieldKey, ext);
 
       const uploadResponse = await fetch(uploadUrl, {
         method: "PUT",
@@ -150,7 +150,7 @@ export function useAdminUploadKycDoc() {
         throw new Error(`Upload failed: ${uploadResponse.statusText}`);
       }
 
-      await partnersApi.saveKycDocImage(userId, fieldKey, fileKey);
+      await partnersApi.saveKycDocImage(userId, fieldKey, publicUrl);
     },
     onSuccess: (_, { userId }) => {
       qc.invalidateQueries({ queryKey: ["partners", userId] });
