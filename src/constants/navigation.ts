@@ -8,6 +8,7 @@ import {
   CreditCard,
   Bell,
   Megaphone,
+  Radio,
   Ticket,
   Settings,
   Activity,
@@ -71,6 +72,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Advertisements",
     href: "/ads",
     icon: Megaphone,
+  },
+  {
+    label: "Announcements",
+    href: "/announcements",
+    icon: Radio,
   },
   {
     label: "Support Tickets",
