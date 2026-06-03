@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { settingsApi } from "@/lib/api/settings";
-import { SystemConfigForm } from "@/components/settings/SystemConfigForm";
+import { SystemConfigForm, AppVersionCard } from "@/components/settings/SystemConfigForm";
 import { SubAdminSettingsCard } from "@/components/settings/SubAdminSettingsCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DashboardSkeleton } from "@/components/ui/SkeletonLoader";
@@ -53,6 +53,14 @@ export default function SettingsPage() {
       </motion.div>
 
       <SubAdminSettingsCard />
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.35 }}
+      >
+        <AppVersionCard />
+      </motion.div>
     </div>
   );
 }

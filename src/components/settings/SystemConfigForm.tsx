@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Save, RefreshCw } from "lucide-react";
+import { Save, RefreshCw, Smartphone, ShieldAlert } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import type { SystemConfig } from "@/lib/api/settings";
+import apiClient from "@/lib/api/client";
+import toast from "react-hot-toast";
 
 const CONFIG_METADATA: Record<
   string,
@@ -231,6 +234,248 @@ export function SystemConfigForm({ configs, onSave }: SystemConfigFormProps) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+export function AppVersionCard() {
+  const qc = useQueryClient();
+  const [form, setForm] = useState<{
+    appVersionMinimum: string;
+    appVersionLatest: string;
+    forceUpdate: boolean;
+  } | null>(null);
+
+  const { data: current, isLoading } = useQuery({
+    queryKey: ["system-settings"],
+    queryFn: async () => {
+      const res = await apiClient.get("/admin/system/settings");
+      return res.data.data;
+    },
+    staleTime: 60_000,
+  });
+
+  // Initialise form once data loads — never overwrite unsaved user edits
+  useEffect(() => {
+    if (current && form === null) {
+      setForm({
+        appVersionMinimum: current.appVersionMinimum ?? "",
+        appVersionLatest: current.appVersionLatest ?? "",
+        forceUpdate: current.forceUpdate ?? false,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      await apiClient.patch("/admin/system/settings", form);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["system-settings"] });
+      toast.success("App version settings saved");
+    },
+    onError: () => toast.error("Failed to save"),
+  });
+
+  const isDirty =
+    form !== null &&
+    current != null &&
+    (form.appVersionMinimum !== (current.appVersionMinimum ?? "") ||
+      form.appVersionLatest !== (current.appVersionLatest ?? "") ||
+      form.forceUpdate !== (current.forceUpdate ?? false));
+
+  return (
+    <div className="card">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-light-border dark:border-dark-border">
+        <Smartphone size={16} className="text-brand-purple" />
+        <h3 className="font-semibold text-[15px] text-light-text dark:text-dark-text">
+          App Version & Force Update
+        </h3>
+      </div>
+
+      {isLoading || form === null ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 rounded-xl bg-light-surface-2 dark:bg-dark-surface-2 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+
+          {/* ── Current live status (read-only) ── */}
+          <div className="p-4 rounded-xl bg-light-surface-2 dark:bg-dark-surface-2 border border-light-border dark:border-dark-border">
+            <p className="text-[11px] font-semibold text-light-text-3 dark:text-dark-text-3 uppercase tracking-wide mb-3">
+              Current Live Status
+            </p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">Latest Version</p>
+                <p className="text-[18px] font-bold text-light-text dark:text-dark-text font-mono mt-0.5">
+                  {current.appVersionLatest ?? "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">Minimum Version</p>
+                <p className="text-[18px] font-bold text-light-text dark:text-dark-text font-mono mt-0.5">
+                  {current.appVersionMinimum ?? "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">Force Update</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      current.forceUpdate
+                        ? "bg-brand-red animate-pulse"
+                        : "bg-light-text-3 dark:bg-dark-text-3"
+                    )}
+                  />
+                  <p
+                    className={cn(
+                      "text-[14px] font-bold",
+                      current.forceUpdate
+                        ? "text-brand-red"
+                        : "text-light-text-2 dark:text-dark-text-2"
+                    )}
+                  >
+                    {current.forceUpdate ? "ON — Users are being blocked" : "OFF"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Edit section ── */}
+          <p className="text-[11px] font-semibold text-light-text-3 dark:text-dark-text-3 uppercase tracking-wide">
+            Update Settings
+          </p>
+
+          {/* Minimum Version */}
+          <div
+            className={cn(
+              "flex items-start gap-4 p-4 rounded-xl border transition-all duration-150",
+              form.appVersionMinimum !== (current.appVersionMinimum ?? "")
+                ? "border-brand-purple/40 bg-brand-purple-muted/30 dark:bg-brand-purple-muted-dark/30"
+                : "border-light-border dark:border-dark-border"
+            )}
+          >
+            <div className="flex-1">
+              <p className="text-[14px] font-semibold text-light-text dark:text-dark-text">Minimum Version</p>
+              <p className="text-[12px] text-light-text-2 dark:text-dark-text-2 mt-0.5">
+                Users below this version are blocked and forced to update
+              </p>
+            </div>
+            <input
+              type="text"
+              value={form.appVersionMinimum}
+              onChange={(e) =>
+                setForm((p) => (p ? { ...p, appVersionMinimum: e.target.value } : p))
+              }
+              placeholder="e.g. 2.1.0"
+              className="input-base w-28 text-center text-sm py-1.5"
+            />
+          </div>
+
+          {/* Latest Version */}
+          <div
+            className={cn(
+              "flex items-start gap-4 p-4 rounded-xl border transition-all duration-150",
+              form.appVersionLatest !== (current.appVersionLatest ?? "")
+                ? "border-brand-purple/40 bg-brand-purple-muted/30 dark:bg-brand-purple-muted-dark/30"
+                : "border-light-border dark:border-dark-border"
+            )}
+          >
+            <div className="flex-1">
+              <p className="text-[14px] font-semibold text-light-text dark:text-dark-text">Latest Version</p>
+              <p className="text-[12px] text-light-text-2 dark:text-dark-text-2 mt-0.5">
+                The current latest version available on Play Store
+              </p>
+            </div>
+            <input
+              type="text"
+              value={form.appVersionLatest}
+              onChange={(e) =>
+                setForm((p) => (p ? { ...p, appVersionLatest: e.target.value } : p))
+              }
+              placeholder="e.g. 2.1.0"
+              className="input-base w-28 text-center text-sm py-1.5"
+            />
+          </div>
+
+          {/* Force Update Toggle */}
+          <div
+            className={cn(
+              "flex items-start gap-4 p-4 rounded-xl border transition-all duration-150",
+              form.forceUpdate !== (current.forceUpdate ?? false)
+                ? "border-brand-red/40 bg-red-50/50 dark:bg-red-950/20"
+                : "border-light-border dark:border-dark-border"
+            )}
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <ShieldAlert
+                  size={14}
+                  className={
+                    form.forceUpdate
+                      ? "text-brand-red"
+                      : "text-light-text-3 dark:text-dark-text-3"
+                  }
+                />
+                <p className="text-[14px] font-semibold text-light-text dark:text-dark-text">
+                  Force Update
+                </p>
+                {form.forceUpdate && (
+                  <span className="text-[11px] font-semibold text-brand-red bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded-full">
+                    Will block users below minimum version
+                  </span>
+                )}
+              </div>
+              <p className="text-[12px] text-light-text-2 dark:text-dark-text-2 mt-0.5">
+                When ON, users on old versions cannot use the app until they update
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                setForm((p) => (p ? { ...p, forceUpdate: !p.forceUpdate } : p))
+              }
+              className={cn(
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-purple/30",
+                form.forceUpdate
+                  ? "bg-brand-red"
+                  : "bg-light-border dark:bg-dark-border"
+              )}
+            >
+              <motion.span
+                layout
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                className={cn(
+                  "inline-block h-4 w-4 rounded-full bg-white shadow-sm",
+                  form.forceUpdate ? "translate-x-6" : "translate-x-1"
+                )}
+              />
+            </button>
+          </div>
+
+          {/* Save button — only shown when something changed */}
+          {isDirty && (
+            <div className="flex justify-end pt-1">
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Save size={13} />}
+                loading={mutation.isPending}
+                onClick={() => mutation.mutate()}
+              >
+                Save Version Settings
+              </Button>
+            </div>
+          )}
+
+        </div>
+      )}
     </div>
   );
 }
