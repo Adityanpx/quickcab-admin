@@ -40,10 +40,10 @@ export function WalletStats() {
       <StatCard
         index={2}
         label="In Processing"
-        value={stats?.processingWithdrawalCount ?? 0}
-        subtext={`${formatCurrency(stats?.processingWithdrawalAmount ?? 0)} in flight`}
+        value={stats?.pendingWithdrawalCount ?? 0}
+        subtext={`${formatCurrency(stats?.pendingWithdrawalAmount ?? 0)} in flight`}
         icon={<TrendingDown size={16} />}
-        accentColor={(stats?.processingWithdrawalCount ?? 0) > 0 ? "orange" : "purple"}
+        accentColor={(stats?.pendingWithdrawalCount ?? 0) > 0 ? "orange" : "purple"}
       />
       <StatCard
         index={3}

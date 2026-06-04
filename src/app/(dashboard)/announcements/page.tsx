@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { Save, Megaphone, Users, Truck, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -8,8 +8,7 @@ import { useAnnouncements, useUpsertAnnouncement } from "@/lib/hooks/useAnnounce
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { DashboardSkeleton } from "@/components/ui/SkeletonLoader";
-import { cn } from "@/lib/utils";
-import { formatRelative } from "@/lib/utils";
+import { cn, formatRelative } from "@/lib/utils";
 import type { AnnouncementRole } from "@/lib/api/announcements";
 
 // ─── Animation ────────────────────────────────────────────────────────────────
