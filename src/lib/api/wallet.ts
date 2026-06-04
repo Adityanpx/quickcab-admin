@@ -4,6 +4,7 @@ import type {
   WithdrawalRequest,
   ManualAdjustPayload,
   WalletStats,
+  WalletConfig,
 } from "@/types/wallet";
 
 export const walletApi = {
@@ -21,9 +22,11 @@ export const walletApi = {
     };
   },
 
-  approveWithdrawal: async (id: string) => {
+  // utr is optional — admin fills it after manually transferring money
+  approveWithdrawal: async (id: string, utr?: string) => {
     const response = await apiClient.post(
-      `/admin/wallet/withdrawals/${id}/approve`
+      `/admin/wallet/withdrawals/${id}/approve`,
+      { utr: utr?.trim() || undefined }
     );
     return response.data;
   },
@@ -48,6 +51,24 @@ export const walletApi = {
   getStats: async (): Promise<WalletStats> => {
     const response = await apiClient.get<ApiResponse<WalletStats>>(
       "/admin/wallet/stats"
+    );
+    return response.data.data;
+  },
+
+  getWalletConfig: async (): Promise<WalletConfig> => {
+    const response = await apiClient.get<ApiResponse<WalletConfig>>(
+      "/admin/wallet/config"
+    );
+    return response.data.data;
+  },
+
+  updateWalletConfig: async (config: WalletConfig): Promise<WalletConfig> => {
+    const response = await apiClient.put<ApiResponse<WalletConfig>>(
+      "/admin/wallet/config",
+      {
+        minWithdrawalCoins: config.minWithdrawalCoins,
+        maxWithdrawalCoins: config.maxWithdrawalCoins,
+      }
     );
     return response.data.data;
   },

@@ -32,6 +32,12 @@ const CONFIG_METADATA: Record<
     type: "number",
     unit: "coins",
   },
+  max_withdrawal_coins: {
+    label: "Maximum Withdrawal",
+    description: "Maximum coins a user can withdraw in a single request",
+    type: "number",
+    unit: "coins",
+  },
   booking_expiry_hours: {
     label: "Booking Auto-Expire",
     description: "Hours after which an OPEN booking auto-expires if no one accepts",
@@ -108,7 +114,7 @@ export function SystemConfigForm({ configs, onSave }: SystemConfigFormProps) {
 
   // Group configs
   const grouped = {
-    wallet: ["coins_per_lead", "coin_value_inr", "min_withdrawal_coins"],
+    wallet: ["coins_per_lead", "coin_value_inr", "min_withdrawal_coins", "max_withdrawal_coins"],
     bookings: ["booking_expiry_hours", "rating_window_hours"],
     subscriptions: ["subscription_partner_enabled", "subscription_provider_enabled"],
   };

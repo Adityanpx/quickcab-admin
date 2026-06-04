@@ -94,6 +94,9 @@ export function WithdrawalTable({
                     <p className="text-[14px] font-bold text-light-text dark:text-dark-text">
                       {formatCurrency(w.amountINR)}
                     </p>
+                    <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
+                      {w.amountCoins} coins
+                    </p>
                   </td>
 
                   {/* Bank details */}
@@ -109,9 +112,15 @@ export function WithdrawalTable({
                   {/* Status */}
                   <td>
                     <StatusBadge status={w.status} />
-                    {w.razorpayPayoutId && (
+                    {/* Show UTR if paid, rejection reason if rejected */}
+                    {w.status === "PROCESSED" && w.utr && (
                       <p className="text-[10px] font-mono text-light-text-3 dark:text-dark-text-3 mt-0.5">
-                        {w.razorpayPayoutId.slice(0, 16)}…
+                        UTR: {w.utr}
+                      </p>
+                    )}
+                    {w.status === "REJECTED" && w.rejectedReason && (
+                      <p className="text-[10px] text-brand-red mt-0.5 max-w-[140px] truncate">
+                        {w.rejectedReason}
                       </p>
                     )}
                   </td>
@@ -155,10 +164,8 @@ export function WithdrawalTable({
                     ) : (
                       <div className="flex justify-end">
                         <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
-                          {w.status === "PROCESSED"  && "Paid out"}
-                          {w.status === "PROCESSING" && "⏳ Processing..."}
-                          {w.status === "REJECTED"   && "Rejected"}
-                          {w.status === "FAILED"     && "⚠ Failed"}
+                          {w.status === "PROCESSED" && "Paid"}
+                          {w.status === "REJECTED"  && "Rejected"}
                         </span>
                       </div>
                     )}

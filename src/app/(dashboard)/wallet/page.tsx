@@ -9,6 +9,7 @@ import { WalletStats } from "@/components/wallet/WalletStats";
 import { WithdrawalTable } from "@/components/wallet/WithdrawalTable";
 import { ManualAdjustModal } from "@/components/wallet/ManualAdjustModal";
 import { RejectWithdrawalModal } from "@/components/wallet/RejectWithdrawalModal";
+import { ApproveWithdrawalModal } from "@/components/wallet/ApproveWithdrawalModal";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -23,11 +24,9 @@ const sectionVariants: Variants = {
 };
 
 const STATUS_OPTIONS = [
-  { value: "PENDING",    label: "Pending" },
-  { value: "PROCESSING", label: "Processing" },
-  { value: "PROCESSED",  label: "Processed" },
-  { value: "REJECTED",   label: "Rejected" },
-  { value: "FAILED",     label: "Failed" },
+  { value: "PENDING",   label: "Pending" },
+  { value: "PROCESSED", label: "Processed" },
+  { value: "REJECTED",  label: "Rejected" },
 ];
 
 export default function WalletPage() {
@@ -35,7 +34,7 @@ export default function WalletPage() {
   const [statusFilter, setStatusFilter] = useState("PENDING");
   const [showAdjust, setShowAdjust] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<WithdrawalRequest | null>(null);
-  const [approvingId, setApprovingId] = useState<string>("");
+  const [approveTarget, setApproveTarget] = useState<WithdrawalRequest | null>(null);
 
   const { data, isLoading } = useWithdrawals({
     status: statusFilter || undefined,
@@ -49,13 +48,10 @@ export default function WalletPage() {
   const withdrawals = data?.items ?? [];
   const pagination = data?.pagination;
 
-  const handleApprove = async (withdrawal: WithdrawalRequest) => {
-    setApprovingId(withdrawal.id);
-    try {
-      await approveMutation.mutateAsync(withdrawal.id);
-    } finally {
-      setApprovingId("");
-    }
+  const handleApproveConfirm = async (utr?: string) => {
+    if (!approveTarget) return;
+    await approveMutation.mutateAsync({ id: approveTarget.id, utr });
+    setApproveTarget(null);
   };
 
   const handleRejectConfirm = async (reason: string) => {
@@ -112,9 +108,9 @@ export default function WalletPage() {
           total={pagination?.total ?? 0}
           limit={15}
           onPageChange={setPage}
-          onApprove={handleApprove}
+          onApprove={setApproveTarget}
           onReject={setRejectTarget}
-          approvingId={approvingId}
+          approvingId={approveTarget?.id ?? ""}
         />
       </motion.div>
 
@@ -122,6 +118,14 @@ export default function WalletPage() {
       <ManualAdjustModal
         isOpen={showAdjust}
         onClose={() => setShowAdjust(false)}
+      />
+
+      <ApproveWithdrawalModal
+        isOpen={!!approveTarget}
+        onClose={() => setApproveTarget(null)}
+        onConfirm={handleApproveConfirm}
+        withdrawal={approveTarget}
+        loading={approveMutation.isPending}
       />
 
       <RejectWithdrawalModal

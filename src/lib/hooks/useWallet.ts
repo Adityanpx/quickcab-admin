@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { walletApi } from "@/lib/api/wallet";
+import type { WalletConfig } from "@/types/wallet";
 import toast from "react-hot-toast";
 
 export function useWithdrawals(params = {}) {
@@ -21,11 +22,12 @@ export function useWalletStats() {
 export function useApproveWithdrawal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => walletApi.approveWithdrawal(id),
+    mutationFn: ({ id, utr }: { id: string; utr?: string }) =>
+      walletApi.approveWithdrawal(id, utr),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Withdrawal approved — payout triggered");
+      toast.success("Withdrawal marked as paid");
     },
     onError: () => toast.error("Failed to approve withdrawal"),
   });
@@ -38,7 +40,7 @@ export function useRejectWithdrawal() {
       walletApi.rejectWithdrawal(id, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
-      toast.success("Withdrawal rejected");
+      toast.success("Withdrawal rejected — coins refunded to user");
     },
     onError: () => toast.error("Failed to reject withdrawal"),
   });
@@ -54,5 +56,26 @@ export function useManualAdjust() {
       toast.success("Wallet adjusted successfully");
     },
     onError: () => toast.error("Failed to adjust wallet"),
+  });
+}
+
+export function useWalletConfig() {
+  return useQuery({
+    queryKey: ["wallet", "config"],
+    queryFn: walletApi.getWalletConfig,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpdateWalletConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (config: WalletConfig) => walletApi.updateWalletConfig(config),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wallet", "config"] });
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("Withdrawal limits updated");
+    },
+    onError: () => toast.error("Failed to update withdrawal limits"),
   });
 }
