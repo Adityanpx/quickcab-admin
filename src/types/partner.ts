@@ -31,7 +31,6 @@ export interface KycRecord {
   aadhaarBackUrl: string | null;
   drivingLicenceUrl: string | null;
   selfieUrl: string | null;
-  businessDocUrl: string | null;
 
   // Vehicle info (Partner)
   vehicleName: string | null;
@@ -46,13 +45,11 @@ export interface KycRecord {
   aadhaarBackStatus: "PENDING" | "APPROVED" | "REJECTED";
   drivingLicenceStatus: "PENDING" | "APPROVED" | "REJECTED";
   selfieStatus: "PENDING" | "APPROVED" | "REJECTED";
-  businessDocStatus: "PENDING" | "APPROVED" | "REJECTED";
 
   // Per-document reject reasons
   aadhaarRejectReason: string | null;
   drivingLicenceRejectReason: string | null;
   selfieRejectReason: string | null;
-  businessDocRejectReason: string | null;
 
   // Admin review
   adminNote: string | null;

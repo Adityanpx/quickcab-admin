@@ -17,8 +17,6 @@ export interface KycRejectPayload {
   drivingLicenceRejectReason?: string;
   selfieStatus?: "APPROVED" | "REJECTED";
   selfieRejectReason?: string;
-  businessDocStatus?: "APPROVED" | "REJECTED";
-  businessDocRejectReason?: string;
 }
 
 export const partnersApi = {
@@ -182,7 +180,6 @@ export const partnersApi = {
       aadhaarBack:    "kyc-aadhaar-back",
       drivingLicence: "kyc-driving-licence",
       selfie:         "kyc-selfie",
-      businessDoc:    "kyc-business-doc",
     };
     const category = categoryMap[fieldKey];
     if (!category) throw new Error(`Unknown fieldKey: ${fieldKey}`);

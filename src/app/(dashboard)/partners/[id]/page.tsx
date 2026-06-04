@@ -143,14 +143,6 @@ export default function PartnerDetailPage() {
           rejectReason: kycRecord.selfieRejectReason ?? null,
           isResubmitted: resubmittedSet.has("selfie"),
         },
-        {
-          label: "Business Document",
-          fieldKey: "businessDoc",
-          url: kycRecord.businessDocUrl ?? null,
-          status: kycRecord.businessDocStatus ?? "PENDING",
-          rejectReason: kycRecord.businessDocRejectReason ?? null,
-          isResubmitted: resubmittedSet.has("businessDoc"),
-        },
       ]
     : [];
 
@@ -219,8 +211,6 @@ export default function PartnerDetailPage() {
       drivingLicenceRejectReason: partner.kycRecord?.drivingLicenceUrl ? rejectNote : undefined,
       selfieStatus: "REJECTED",
       selfieRejectReason: rejectNote,
-      businessDocStatus: partner.kycRecord?.businessDocUrl ? "REJECTED" : undefined,
-      businessDocRejectReason: partner.kycRecord?.businessDocUrl ? rejectNote : undefined,
     };
     await rejectKycMutation.mutateAsync({ userId: partner.id, payload });
     setRejectNoteOpen(false);
@@ -247,15 +237,13 @@ export default function PartnerDetailPage() {
       freshKyc.aadhaarFrontStatus === "APPROVED" &&
       freshKyc.aadhaarBackStatus === "APPROVED" &&
       freshKyc.selfieStatus === "APPROVED" &&
-      (!freshKyc.drivingLicenceUrl || freshKyc.drivingLicenceStatus === "APPROVED") &&
-      (!freshKyc.businessDocUrl || freshKyc.businessDocStatus === "APPROVED");
+      (!freshKyc.drivingLicenceUrl || freshKyc.drivingLicenceStatus === "APPROVED");
 
     const anyRejected =
       freshKyc.aadhaarFrontStatus === "REJECTED" ||
       freshKyc.aadhaarBackStatus === "REJECTED" ||
       freshKyc.selfieStatus === "REJECTED" ||
-      (!!freshKyc.drivingLicenceUrl && freshKyc.drivingLicenceStatus === "REJECTED") ||
-      (!!freshKyc.businessDocUrl && freshKyc.businessDocStatus === "REJECTED");
+      (!!freshKyc.drivingLicenceUrl && freshKyc.drivingLicenceStatus === "REJECTED");
 
     if (allApproved && !anyRejected) {
       await approveKycMutation.mutateAsync({ userId: partner.id, note: "All documents verified" });
@@ -302,10 +290,6 @@ export default function PartnerDetailPage() {
       ...(kyc.drivingLicenceUrl && {
         drivingLicenceStatus: resolveStatus("drivingLicence", kyc.drivingLicenceStatus),
         drivingLicenceRejectReason: resolveReason("drivingLicence", kyc.drivingLicenceRejectReason),
-      }),
-      ...(kyc.businessDocUrl && {
-        businessDocStatus: resolveStatus("businessDoc", kyc.businessDocStatus),
-        businessDocRejectReason: resolveReason("businessDoc", kyc.businessDocRejectReason),
       }),
     };
 
