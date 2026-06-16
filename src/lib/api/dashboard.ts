@@ -26,6 +26,11 @@ export interface DashboardStats {
   ratings: {
     flagged: number;
   };
+  kyc: {
+    pendingTotal: number;
+    approvedToday: number;
+    rejectedToday: number;
+  };
   generatedAt: string;
 }
 

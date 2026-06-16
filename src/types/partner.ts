@@ -67,6 +67,7 @@ export interface KycRecord {
 
 export interface Partner {
   id: string;
+  displayId?: string;
   name: string;
   mobile: string;
   email: string | null;
@@ -96,6 +97,8 @@ export interface PartnerListFilters {
   status?: UserStatus;
   subType?: PartnerSubType;
   city?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface SuspendPartnerPayload {

@@ -116,6 +116,9 @@ export const partnersApi = {
         kycStatus: kycRecord.status,
         submittedAt: kycRecord.submittedAt,
         aadhaarNumber: kycRecord.aadhaarNumber,
+        vehicleNumber: kycRecord.vehicleNumber ?? null,
+        city: kycRecord.city ?? null,
+        displayId: kycRecord.displayId ?? null,
         id: kycRecord.id, // Keep original ID for reference
       }));
 

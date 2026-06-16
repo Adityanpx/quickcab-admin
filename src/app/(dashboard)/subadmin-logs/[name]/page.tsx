@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { motion } from "framer-motion";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Activity,
@@ -199,15 +199,25 @@ function RestrictModal({
 }
 
 // ─── Main Page ────────────────────────────────────────────
-export default function SubAdminDetailPage() {
+function SubAdminDetailContent() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const name = decodeURIComponent(params.name as string);
 
-  const [page, setPage] = useState(1);
-  const [action, setAction] = useState("");
+  const page = Number(searchParams.get("page") ?? "1");
+  const action = searchParams.get("action") ?? "";
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  function updateParams(updates: Record<string, string>) {
+    const p = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v) p.set(k, v);
+      else p.delete(k);
+    });
+    router.replace(`?${p.toString()}`);
+  }
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [isRestricting, setIsRestricting] = useState(false);
@@ -373,7 +383,7 @@ export default function SubAdminDetailPage() {
           </div>
           <FilterSelect
             value={action}
-            onChange={(v) => { setAction(v); setPage(1); }}
+            onChange={(v) => { updateParams({ action: v, page: "1" }); }}
             options={ACTION_FILTER_OPTIONS}
             placeholder="All Actions"
             className="w-52"
@@ -383,20 +393,20 @@ export default function SubAdminDetailPage() {
             <input
               type="date"
               value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+              onChange={(e) => { setDateFrom(e.target.value); updateParams({ page: "1" }); }}
               className={cn("px-3 py-2 text-sm rounded-xl border bg-white dark:bg-dark-surface border-light-border dark:border-dark-border text-light-text dark:text-dark-text focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/10 transition-all duration-150 cursor-pointer")}
             />
             <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">to</span>
             <input
               type="date"
               value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+              onChange={(e) => { setDateTo(e.target.value); updateParams({ page: "1" }); }}
               className={cn("px-3 py-2 text-sm rounded-xl border bg-white dark:bg-dark-surface border-light-border dark:border-dark-border text-light-text dark:text-dark-text focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/10 transition-all duration-150 cursor-pointer")}
             />
           </div>
           {hasActiveFilters && (
             <button
-              onClick={() => { setAction(""); setDateFrom(""); setDateTo(""); setPage(1); }}
+              onClick={() => { updateParams({ action: "", page: "1" }); setDateFrom(""); setDateTo(""); }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium text-brand-red bg-brand-red-muted hover:bg-red-100 dark:hover:bg-red-950 transition-colors"
             >
               <XCircle size={13} />
@@ -488,7 +498,7 @@ export default function SubAdminDetailPage() {
               totalPages={pagination.totalPages}
               total={pagination.total}
               limit={20}
-              onPageChange={setPage}
+              onPageChange={(n) => updateParams({ page: String(n) })}
             />
           </div>
         )}
@@ -514,5 +524,13 @@ export default function SubAdminDetailPage() {
         loading={isRestricting}
       />
     </div>
+  );
+}
+
+export default function SubAdminDetailPage() {
+  return (
+    <Suspense>
+      <SubAdminDetailContent />
+    </Suspense>
   );
 }

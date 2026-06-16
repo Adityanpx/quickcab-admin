@@ -340,7 +340,7 @@ export function KycDocViewer({
 
               {/* Zoom out */}
               <button
-                onClick={() => setZoom(p => Math.max(0.25, parseFloat((p - 0.25).toFixed(2))))}
+                onClick={() => setZoom(p => Math.max(0.25, parseFloat((p - 0.10).toFixed(2))))}
                 className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
                 title="Zoom out"
               >
@@ -354,7 +354,7 @@ export function KycDocViewer({
 
               {/* Zoom in */}
               <button
-                onClick={() => setZoom(p => Math.min(5, parseFloat((p + 0.25).toFixed(2))))}
+                onClick={() => setZoom(p => Math.min(5, parseFloat((p + 0.10).toFixed(2))))}
                 className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
                 title="Zoom in"
               >

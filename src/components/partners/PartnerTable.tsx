@@ -210,6 +210,11 @@ export function PartnerTable({
                         <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
                           {partner.mobile}
                         </p>
+                        {partner.displayId && (
+                          <p className="text-[10px] text-light-text-3 dark:text-dark-text-3 font-mono">
+                            {partner.displayId}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>

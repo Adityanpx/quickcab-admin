@@ -3,9 +3,11 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
-import { FileCheck, CheckCircle, XCircle, Clock, Eye } from "lucide-react";
+import { FileCheck, CheckCircle, XCircle, Clock } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useKycQueue, useApproveKyc, useRejectKyc } from "@/lib/hooks/usePartners";
+import { useDashboardStats } from "@/lib/hooks/useDashboard";
 import type { KycRejectPayload } from "@/lib/api/partners";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge, StatusBadge } from "@/components/ui/Badge";
@@ -18,12 +20,18 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Modal } from "@/components/ui/Modal";
 import { TableRowSkeleton } from "@/components/ui/SkeletonLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatRelative } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
   { value: "PENDING",  label: "Submitted — Awaiting Review" },
   { value: "REJECTED", label: "Rejected" },
   { value: "APPROVED", label: "Approved" },
+];
+
+const DATE_PRESET_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "week",  label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "year",  label: "This Year" },
 ];
 
 const sectionVariants: Variants = {
@@ -40,22 +48,40 @@ interface KycQueueItem {
   mobile: string;
   subType?: string;
   kycStatus: string;
-  submittedAt: string;
   aadhaarNumber?: string;
+  vehicleNumber?: string | null;
+  city?: string | null;
+  displayId?: string | null;
 }
 
 export default function KycQueuePage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [datePreset, setDatePreset] = useState("");
   const [rejectTarget, setRejectTarget] = useState<{ userId: string; name: string } | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+
+  const { data: dashStats } = useDashboardStats();
+
+  function getDateRange(preset: string): { dateFrom?: string; dateTo?: string } {
+    if (!preset) return {};
+    const now = new Date();
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    if (preset === "today") return { dateFrom: start.toISOString() };
+    if (preset === "week")  { const d = new Date(start); d.setDate(d.getDate() - 7);   return { dateFrom: d.toISOString() }; }
+    if (preset === "month") { const d = new Date(start); d.setMonth(d.getMonth() - 1); return { dateFrom: d.toISOString() }; }
+    if (preset === "year")  { const d = new Date(start); d.setFullYear(d.getFullYear() - 1); return { dateFrom: d.toISOString() }; }
+    return {};
+  }
 
   const { data, isLoading } = useKycQueue({
     page,
     limit: 15,
     search: search || undefined,
     status: statusFilter || undefined,
+    ...getDateRange(datePreset),
   });
 
   const approveKycMutation = useApproveKyc();
@@ -94,9 +120,6 @@ export default function KycQueuePage() {
   const items: KycQueueItem[] = data?.items ?? [];
   const pagination = data?.pagination;
 
-  // Stats
-  const pendingCount = items.filter((i) => i.kycStatus === "PENDING").length;
-
   return (
     <div className="space-y-6 max-w-[1400px]">
       {/* ── Page Header ─────────────────────────────── */}
@@ -125,21 +148,21 @@ export default function KycQueuePage() {
         <StatCard
           index={1}
           label="Pending Review"
-          value={pendingCount}
+          value={dashStats?.kyc?.pendingTotal ?? 0}
           icon={<Clock size={16} />}
-          accentColor={pendingCount > 5 ? "orange" : "purple"}
+          accentColor={(dashStats?.kyc?.pendingTotal ?? 0) > 5 ? "orange" : "purple"}
         />
         <StatCard
           index={2}
           label="Approved Today"
-          value="—"
+          value={dashStats?.kyc?.approvedToday ?? 0}
           icon={<CheckCircle size={16} />}
           accentColor="green"
         />
         <StatCard
           index={3}
-          label="Rejected"
-          value="—"
+          label="Rejected Today"
+          value={dashStats?.kyc?.rejectedToday ?? 0}
           icon={<XCircle size={16} />}
           accentColor="red"
         />
@@ -165,6 +188,13 @@ export default function KycQueuePage() {
           placeholder="All Statuses"
           className="sm:w-44"
         />
+        <FilterSelect
+          value={datePreset}
+          onChange={(v) => { setDatePreset(v); setPage(1); }}
+          options={DATE_PRESET_OPTIONS}
+          placeholder="All Time"
+          className="sm:w-40"
+        />
       </motion.div>
 
       {/* ── Table ───────────────────────────────────── */}
@@ -178,18 +208,19 @@ export default function KycQueuePage() {
                   <th>Type</th>
                   <th>KYC Status</th>
                   <th>Aadhaar</th>
-                  <th>Submitted</th>
-                  <th className="pr-5 text-right">Actions</th>
+                  <th>Cab No</th>
+                  <th>City</th>
+                  <th className="pr-5 text-right">Review</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   Array.from({ length: 8 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={6} />
+                    <TableRowSkeleton key={i} cols={7} />
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <EmptyState
                         title="No KYC requests found"
                         description="All caught up! No pending documents to review."
@@ -204,6 +235,8 @@ export default function KycQueuePage() {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03, duration: 0.25 }}
+                      onClick={() => router.push(`/partners/${item.userId}`)}
+                      className="cursor-pointer hover:bg-light-surface-2 dark:hover:bg-dark-surface transition-colors"
                     >
                       {/* Partner */}
                       <td className="pl-5">
@@ -219,6 +252,11 @@ export default function KycQueuePage() {
                             <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
                               {item.mobile}
                             </p>
+                            {item.displayId && (
+                              <p className="text-[10px] text-light-text-3 dark:text-dark-text-3 font-mono">
+                                {item.displayId}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -239,41 +277,40 @@ export default function KycQueuePage() {
                         <StatusBadge status={item.kycStatus} />
                       </td>
 
-                      {/* Aadhaar (masked) */}
+                      {/* Aadhaar */}
                       <td>
                         <span className="text-[12px] font-mono text-light-text-2 dark:text-dark-text-2">
-                          {item.aadhaarNumber
-                            ? `XXXX XXXX ${item.aadhaarNumber.slice(-4)}`
-                            : "—"}
+                          {item.aadhaarNumber ?? "—"}
                         </span>
                       </td>
 
-                      {/* Submitted */}
+                      {/* Cab No */}
                       <td>
-                        <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
-                          {item.submittedAt ? formatRelative(item.submittedAt) : "—"}
+                        <span className="text-[12px] font-mono text-light-text-2 dark:text-dark-text-2">
+                          {item.vehicleNumber ?? "—"}
                         </span>
                       </td>
 
-                      {/* Actions */}
+                      {/* City */}
+                      <td>
+                        <span className="text-[12px] text-light-text-2 dark:text-dark-text-2">
+                          {item.city ?? "—"}
+                        </span>
+                      </td>
+
+                      {/* Review */}
                       <td className="pr-5">
                         <div className="flex items-center justify-end gap-2">
-                          {/* View partner */}
-                          <Link href={`/partners/${item.userId}`}>
-                            <Button variant="ghost" size="xs" icon={<Eye size={13} />}>
-                              View
-                            </Button>
-                          </Link>
-
                           {/* Approve / Reject (only for pending) */}
                           {item.kycStatus === "PENDING" && (
                             <>
                               <Button
                                 variant="danger"
                                 size="xs"
-                                onClick={() =>
-                                  setRejectTarget({ userId: item.userId, name: item.userName })
-                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRejectTarget({ userId: item.userId, name: item.userName });
+                                }}
                               >
                                 Reject
                               </Button>
@@ -284,7 +321,10 @@ export default function KycQueuePage() {
                                   approveKycMutation.isPending &&
                                   approveKycMutation.variables?.userId === item.userId
                                 }
-                                onClick={() => handleApprove(item.userId)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApprove(item.userId);
+                                }}
                               >
                                 Approve
                               </Button>

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { Users, UserCheck, UserX, Clock } from "lucide-react";
 import { usePartners, useSuspendPartner, usePartnerCities } from "@/lib/hooks/usePartners";
+import { useDashboardStats } from "@/lib/hooks/useDashboard";
 import { partnersApi } from "@/lib/api/partners";
 import { PartnerFilters } from "@/components/partners/PartnerFilters";
 import { PartnerTable } from "@/components/partners/PartnerTable";
@@ -13,6 +15,7 @@ import { BlockModal } from "@/components/partners/BlockModal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { StatCard } from "@/components/ui/StatCard";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { FilterSelect } from "@/components/ui/FilterSelect";
 import type { Partner, SuspendPartnerPayload } from "@/types/partner";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,16 +28,51 @@ const sectionVariants: Variants = {
   }),
 };
 
-export default function PartnersPage() {
+function PartnersPageContent() {
   const qc = useQueryClient();
 
   // ── Filters state ─────────────────────────────────────
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [subType, setSubType] = useState("");
-  const [city, setCity] = useState("");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const page       = Number(searchParams.get("page")       ?? "1");
+  const search     = searchParams.get("search")     ?? "";
+  const status     = searchParams.get("status")     ?? "";
+  const subType    = searchParams.get("subType")    ?? "";
+  const city       = searchParams.get("city")       ?? "";
+  const datePreset = searchParams.get("datePreset") ?? "";
   const [isExporting, setIsExporting] = useState(false);
+
+  // Keep latest searchParams in a ref so callbacks don't need it as a dep
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
+
+  const updateParams = useCallback((updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParamsRef.current.toString());
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+      else params.delete(k);
+    });
+    router.replace(`?${params.toString()}`);
+  }, [router]);
+
+  function getDateRange(preset: string): { dateFrom?: string; dateTo?: string } {
+    if (!preset) return {};
+    const now = new Date();
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    if (preset === "today") return { dateFrom: start.toISOString() };
+    if (preset === "week")  { const d = new Date(start); d.setDate(d.getDate() - 7);   return { dateFrom: d.toISOString() }; }
+    if (preset === "month") { const d = new Date(start); d.setMonth(d.getMonth() - 1); return { dateFrom: d.toISOString() }; }
+    if (preset === "year")  { const d = new Date(start); d.setFullYear(d.getFullYear() - 1); return { dateFrom: d.toISOString() }; }
+    return {};
+  }
+
+  const DATE_PRESET_OPTIONS = [
+    { value: "today", label: "Today" },
+    { value: "week",  label: "This Week" },
+    { value: "month", label: "This Month" },
+    { value: "year",  label: "This Year" },
+  ];
 
   // ── Modal state ───────────────────────────────────────
   const [suspendTarget, setSuspendTarget] = useState<Partner | null>(null);
@@ -47,6 +85,7 @@ export default function PartnersPage() {
   // ── Data ─────────────────────────────────────────────
   const { data: citiesData } = usePartnerCities();
   const cities = citiesData ?? [];
+  const { data: dashStats } = useDashboardStats();
 
   const { data, isLoading } = usePartners({
     page,
@@ -55,30 +94,20 @@ export default function PartnersPage() {
     status: (status as Partner["status"]) || undefined,
     subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
     city: city || undefined,
+    ...getDateRange(datePreset),
   });
 
   const suspendMutation = useSuspendPartner();
 
   // ── Handlers ──────────────────────────────────────────
   const handleSearch = useCallback((v: string) => {
-    setSearch(v);
-    setPage(1);
-  }, []);
-
-  const handleStatusChange = useCallback((v: string) => {
-    setStatus(v);
-    setPage(1);
-  }, []);
-
-  const handleSubTypeChange = useCallback((v: string) => {
-    setSubType(v);
-    setPage(1);
-  }, []);
-
-  const handleCityChange = useCallback((v: string) => {
-    setCity(v);
-    setPage(1);
-  }, []);
+    const current = searchParamsRef.current.get("search") ?? "";
+    if (v === current) return; // SearchInput fires on mount — ignore if value didn't change
+    updateParams({ search: v, page: "1" });
+  }, [updateParams]);
+  const handleStatusChange = useCallback((v: string) => updateParams({ status: v, page: "1" }), [updateParams]);
+  const handleSubTypeChange = useCallback((v: string) => updateParams({ subType: v, page: "1" }), [updateParams]);
+  const handleCityChange = useCallback((v: string) => updateParams({ city: v, page: "1" }), [updateParams]);
 
   const handleSuspendConfirm = async (formData: SuspendPartnerPayload) => {
     if (!suspendTarget) return;
@@ -171,14 +200,11 @@ export default function PartnersPage() {
   const partners = data?.items ?? [];
   const pagination = data?.pagination;
 
-  // Derived stats from current page data
   const statsData = {
-    total: pagination?.total ?? 0,
-    active: partners.filter((p) => p.status === "ACTIVE").length,
-    pendingKyc: partners.filter((p) =>
-      ["KYC_PENDING", "KYC_IN_PROGRESS", "PROFILE_COMPLETE"].includes(p.status)
-    ).length,
-    suspended: partners.filter((p) => p.status === "SUSPENDED").length,
+    total:      pagination?.total               ?? 0,
+    active:     dashStats?.partners?.active     ?? 0,
+    pendingKyc: dashStats?.partners?.pendingKyc ?? 0,
+    suspended:  dashStats?.partners?.suspended  ?? 0,
   };
 
   return (
@@ -218,7 +244,6 @@ export default function PartnersPage() {
           icon={<UserCheck size={16} />}
           accentColor="green"
           trend="neutral"
-          subtext="on current page"
         />
         <StatCard
           index={2}
@@ -258,6 +283,16 @@ export default function PartnersPage() {
           isExporting={isExporting}
         />
 
+        <div className="flex items-center gap-3">
+          <FilterSelect
+            value={datePreset}
+            onChange={(v) => updateParams({ datePreset: v, page: "1" })}
+            options={DATE_PRESET_OPTIONS}
+            placeholder="All Time"
+            className="sm:w-40"
+          />
+        </div>
+
         <PartnerTable
           partners={partners}
           isLoading={isLoading}
@@ -265,7 +300,7 @@ export default function PartnersPage() {
           totalPages={pagination?.totalPages ?? 1}
           total={pagination?.total ?? 0}
           limit={15}
-          onPageChange={setPage}
+          onPageChange={(n) => updateParams({ page: String(n) })}
           onSuspend={setSuspendTarget}
           onBlock={setBlockTarget}
           onUnsuspend={setUnsuspendTarget}
@@ -301,5 +336,13 @@ export default function PartnersPage() {
         loading={isUnsuspending}
       />
     </div>
+  );
+}
+
+export default function PartnersPage() {
+  return (
+    <Suspense>
+      <PartnersPageContent />
+    </Suspense>
   );
 }
