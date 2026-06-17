@@ -417,20 +417,13 @@ export function KycDocViewer({
                 setZoom(p => Math.min(5, Math.max(0.25, parseFloat((p + delta).toFixed(2)))));
               }}
             >
-              {/*
-                Inner div expands to zoom * 100% of the viewport.
-                At zoom=1 it fills the box exactly; at zoom>1 it overflows,
-                triggering scrollbars so every part of the image is reachable.
-              */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  minWidth: "100%",
-                  minHeight: "100%",
-                  width: zoom > 1 ? `${zoom * 100}%` : "100%",
-                  height: zoom > 1 ? `${zoom * 100}%` : "100%",
+                  width: "100%",
+                  height: "100%",
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -440,13 +433,12 @@ export function KycDocViewer({
                   draggable={false}
                   className="select-none"
                   style={{
-                    width: zoom > 1 ? "100%" : "auto",
-                    height: zoom > 1 ? "auto" : "100%",
-                    maxWidth: zoom > 1 ? "none" : "100%",
-                    maxHeight: zoom > 1 ? "none" : "100%",
+                    maxWidth: "100%",
+                    maxHeight: "100%",
                     objectFit: "contain",
-                    transform: `rotate(${rotation}deg)`,
+                    transform: `rotate(${rotation}deg) scale(${zoom})`,
                     transition: "transform 0.15s ease",
+                    transformOrigin: "center center",
                   }}
                 />
               </div>

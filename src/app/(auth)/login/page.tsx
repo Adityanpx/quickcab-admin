@@ -113,6 +113,14 @@ function DebugPanel() {
 export default function LoginPage() {
   const router = useRouter();
   const setAdmin = useAuthStore((s) => s.setAdmin);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, router]);
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [debugKey, setDebugKey] = useState(0);

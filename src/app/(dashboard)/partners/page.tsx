@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useState, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { Users, UserCheck, UserX, Clock } from "lucide-react";
-import { usePartners, useSuspendPartner, usePartnerCities } from "@/lib/hooks/usePartners";
-import { useDashboardStats } from "@/lib/hooks/useDashboard";
+import { usePartnerCities, useSuspendPartner } from "@/lib/hooks/usePartners";
 import { partnersApi } from "@/lib/api/partners";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PartnerFilters } from "@/components/partners/PartnerFilters";
 import { PartnerTable } from "@/components/partners/PartnerTable";
 import { SuspendModal } from "@/components/partners/SuspendModal";
@@ -15,10 +15,8 @@ import { BlockModal } from "@/components/partners/BlockModal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { StatCard } from "@/components/ui/StatCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { FilterSelect } from "@/components/ui/FilterSelect";
 import type { Partner, SuspendPartnerPayload } from "@/types/partner";
 import toast from "react-hot-toast";
-import { useQueryClient } from "@tanstack/react-query";
 
 const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
@@ -28,22 +26,30 @@ const sectionVariants: Variants = {
   }),
 };
 
+function getDateRange(preset: string): { dateFrom?: string; dateTo?: string } {
+  if (!preset) return {};
+  const now = new Date();
+  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  if (preset === "today") return { dateFrom: start.toISOString() };
+  if (preset === "week")  { const d = new Date(start); d.setDate(d.getDate() - 7);        return { dateFrom: d.toISOString() }; }
+  if (preset === "month") { const d = new Date(start); d.setMonth(d.getMonth() - 1);      return { dateFrom: d.toISOString() }; }
+  if (preset === "year")  { const d = new Date(start); d.setFullYear(d.getFullYear() - 1); return { dateFrom: d.toISOString() }; }
+  return {};
+}
+
 function PartnersPageContent() {
-  const qc = useQueryClient();
-
-  // ── Filters state ─────────────────────────────────────
-  const searchParams = useSearchParams();
   const router = useRouter();
+  const qc = useQueryClient();
+  const searchParams = useSearchParams();
 
+  // ── URL-driven filter state ──────────────────────────────────────────────
   const page       = Number(searchParams.get("page")       ?? "1");
   const search     = searchParams.get("search")     ?? "";
   const status     = searchParams.get("status")     ?? "";
   const subType    = searchParams.get("subType")    ?? "";
   const city       = searchParams.get("city")       ?? "";
   const datePreset = searchParams.get("datePreset") ?? "";
-  const [isExporting, setIsExporting] = useState(false);
 
-  // Keep latest searchParams in a ref so callbacks don't need it as a dep
   const searchParamsRef = useRef(searchParams);
   searchParamsRef.current = searchParams;
 
@@ -56,65 +62,57 @@ function PartnersPageContent() {
     router.replace(`?${params.toString()}`);
   }, [router]);
 
-  function getDateRange(preset: string): { dateFrom?: string; dateTo?: string } {
-    if (!preset) return {};
-    const now = new Date();
-    const start = new Date(now); start.setHours(0, 0, 0, 0);
-    if (preset === "today") return { dateFrom: start.toISOString() };
-    if (preset === "week")  { const d = new Date(start); d.setDate(d.getDate() - 7);   return { dateFrom: d.toISOString() }; }
-    if (preset === "month") { const d = new Date(start); d.setMonth(d.getMonth() - 1); return { dateFrom: d.toISOString() }; }
-    if (preset === "year")  { const d = new Date(start); d.setFullYear(d.getFullYear() - 1); return { dateFrom: d.toISOString() }; }
-    return {};
-  }
-
-  const DATE_PRESET_OPTIONS = [
-    { value: "today", label: "Today" },
-    { value: "week",  label: "This Week" },
-    { value: "month", label: "This Month" },
-    { value: "year",  label: "This Year" },
-  ];
-
-  // ── Modal state ───────────────────────────────────────
-  const [suspendTarget, setSuspendTarget] = useState<Partner | null>(null);
-  const [blockTarget, setBlockTarget] = useState<Partner | null>(null);
+  // ── UI-only state ────────────────────────────────────────────────────────
+  const [isExporting,     setIsExporting]     = useState(false);
+  const [suspendTarget,   setSuspendTarget]   = useState<Partner | null>(null);
+  const [blockTarget,     setBlockTarget]     = useState<Partner | null>(null);
   const [unsuspendTarget, setUnsuspendTarget] = useState<Partner | null>(null);
-  const [isUnsuspending, setIsUnsuspending] = useState(false);
-  const [isBlocking, setIsBlocking] = useState(false);
-  const [isUnblocking, setIsUnblocking] = useState(false);
+  const [isUnsuspending,  setIsUnsuspending]  = useState(false);
+  const [isBlocking,      setIsBlocking]      = useState(false);
+  const [isUnblocking,    setIsUnblocking]    = useState(false);
 
-  // ── Data ─────────────────────────────────────────────
+  // ── Data ─────────────────────────────────────────────────────────────────
   const { data: citiesData } = usePartnerCities();
   const cities = citiesData ?? [];
-  const { data: dashStats } = useDashboardStats();
 
-  const { data, isLoading } = usePartners({
-    page,
-    limit: 15,
-    search: search || undefined,
-    status: (status as Partner["status"]) || undefined,
-    subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
-    city: city || undefined,
-    ...getDateRange(datePreset),
+  const { data, isLoading } = useQuery({
+    queryKey: ["partners", { page, search, status, subType, city, datePreset }],
+    queryFn: () =>
+      partnersApi.getAll({
+        page,
+        limit: 15,
+        search: search || undefined,
+        status: (status as Partner["status"]) || undefined,
+        subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
+        city: city || undefined,
+        ...getDateRange(datePreset),
+      }),
   });
+
+  // ── Real global stat counts via 3 lightweight queries ───────────────────
+  const { data: activeData }    = useQuery({ queryKey: ["partners-count", "ACTIVE"],      queryFn: () => partnersApi.getAll({ status: "ACTIVE",      limit: 1 }), staleTime: 60_000 });
+  const { data: kycData }       = useQuery({ queryKey: ["partners-count", "KYC_PENDING"], queryFn: () => partnersApi.getAll({ status: "KYC_PENDING", limit: 1 }), staleTime: 60_000 });
+  const { data: suspendedData } = useQuery({ queryKey: ["partners-count", "SUSPENDED"],   queryFn: () => partnersApi.getAll({ status: "SUSPENDED",   limit: 1 }), staleTime: 60_000 });
+
+  const activeTotal    = activeData?.pagination?.total    ?? 0;
+  const kycTotal       = kycData?.pagination?.total       ?? 0;
+  const suspendedTotal = suspendedData?.pagination?.total ?? 0;
 
   const suspendMutation = useSuspendPartner();
 
-  // ── Handlers ──────────────────────────────────────────
+  // ── Search handler with guard to prevent mount-reset ────────────────────
   const handleSearch = useCallback((v: string) => {
-    const current = searchParamsRef.current.get("search") ?? "";
-    if (v === current) return; // SearchInput fires on mount — ignore if value didn't change
+    if (v === (searchParamsRef.current.get("search") ?? "")) return;
     updateParams({ search: v, page: "1" });
   }, [updateParams]);
-  const handleStatusChange = useCallback((v: string) => updateParams({ status: v, page: "1" }), [updateParams]);
+
+  const handleStatusChange  = useCallback((v: string) => updateParams({ status: v,  page: "1" }), [updateParams]);
   const handleSubTypeChange = useCallback((v: string) => updateParams({ subType: v, page: "1" }), [updateParams]);
-  const handleCityChange = useCallback((v: string) => updateParams({ city: v, page: "1" }), [updateParams]);
+  const handleCityChange    = useCallback((v: string) => updateParams({ city: v,    page: "1" }), [updateParams]);
 
   const handleSuspendConfirm = async (formData: SuspendPartnerPayload) => {
     if (!suspendTarget) return;
-    await suspendMutation.mutateAsync({
-      id: suspendTarget.id,
-      payload: formData,
-    });
+    await suspendMutation.mutateAsync({ id: suspendTarget.id, payload: formData });
     setSuspendTarget(null);
   };
 
@@ -197,25 +195,13 @@ function PartnersPageContent() {
     }
   };
 
-  const partners = data?.items ?? [];
+  const partners   = data?.items ?? [];
   const pagination = data?.pagination;
-
-  const statsData = {
-    total:      pagination?.total               ?? 0,
-    active:     dashStats?.partners?.active     ?? 0,
-    pendingKyc: dashStats?.partners?.pendingKyc ?? 0,
-    suspended:  dashStats?.partners?.suspended  ?? 0,
-  };
 
   return (
     <div className="space-y-6 max-w-[1600px]">
       {/* ── Page Header ─────────────────────────────────── */}
-      <motion.div
-        custom={0}
-        variants={sectionVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div custom={0} variants={sectionVariants} initial="hidden" animate="visible">
         <PageHeader
           title="Partners"
           subtitle="Manage all Vehicle Owners and Vendors on the platform"
@@ -236,28 +222,31 @@ function PartnersPageContent() {
           value={(pagination?.total ?? 0).toLocaleString("en-IN")}
           icon={<Users size={16} />}
           accentColor="purple"
+          onClick={() => updateParams({ status: "", subType: "", city: "", datePreset: "", page: "1" })}
         />
         <StatCard
           index={1}
           label="Active"
-          value={statsData.active}
+          value={activeTotal.toLocaleString("en-IN")}
           icon={<UserCheck size={16} />}
           accentColor="green"
-          trend="neutral"
+          onClick={() => updateParams({ status: "ACTIVE", page: "1" })}
         />
         <StatCard
           index={2}
           label="KYC Pending"
-          value={statsData.pendingKyc}
+          value={kycTotal.toLocaleString("en-IN")}
           icon={<Clock size={16} />}
-          accentColor={statsData.pendingKyc > 5 ? "orange" : "purple"}
+          accentColor={kycTotal > 5 ? "orange" : "purple"}
+          onClick={() => updateParams({ status: "KYC_PENDING", page: "1" })}
         />
         <StatCard
           index={3}
           label="Suspended"
-          value={statsData.suspended}
+          value={suspendedTotal.toLocaleString("en-IN")}
           icon={<UserX size={16} />}
           accentColor="red"
+          onClick={() => updateParams({ status: "SUSPENDED", page: "1" })}
         />
       </motion.div>
 
@@ -282,16 +271,6 @@ function PartnersPageContent() {
           onExport={handleExport}
           isExporting={isExporting}
         />
-
-        <div className="flex items-center gap-3">
-          <FilterSelect
-            value={datePreset}
-            onChange={(v) => updateParams({ datePreset: v, page: "1" })}
-            options={DATE_PRESET_OPTIONS}
-            placeholder="All Time"
-            className="sm:w-40"
-          />
-        </div>
 
         <PartnerTable
           partners={partners}
@@ -341,7 +320,7 @@ function PartnersPageContent() {
 
 export default function PartnersPage() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <PartnersPageContent />
     </Suspense>
   );
