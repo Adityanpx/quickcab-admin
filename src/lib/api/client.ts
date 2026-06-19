@@ -129,6 +129,7 @@ apiClient.interceptors.response.use(
       if (!refreshToken) {
         tokenStorage.clear();
         if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("qc-admin-auth-expired"));
           window.location.href = "/login";
         }
         return Promise.reject(error);
@@ -168,6 +169,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null);
         tokenStorage.clear();
         if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("qc-admin-auth-expired"));
           window.location.href = "/login";
         }
         return Promise.reject(refreshError);

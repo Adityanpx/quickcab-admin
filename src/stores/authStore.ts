@@ -39,3 +39,9 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+if (typeof window !== "undefined") {
+  window.addEventListener("qc-admin-auth-expired", () => {
+    useAuthStore.getState().logout();
+  });
+}
