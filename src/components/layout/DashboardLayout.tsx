@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { tokenStorage } from "@/lib/api/client";
+import { useAuthStore } from "@/stores/authStore";
 
 const pageVariants = {
   hidden: { opacity: 0, y: 8 },
@@ -21,20 +21,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
   useEffect(() => {
-    const token = tokenStorage.getToken();
-    if (!token) {
+    if (!isAuthenticated) {
       router.replace("/login");
     }
-  }, [router]);
+  }, [isAuthenticated, router]);
 
   // Close mobile sidebar on route change
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Block render until we can confirm a token exists on the client.
-  if (typeof window !== "undefined" && !tokenStorage.getToken()) {
+  // Block render until the persisted auth state confirms the admin is logged in.
+  if (!isAuthenticated) {
     return null;
   }
 
