@@ -26,6 +26,7 @@ interface KycDocViewerProps {
   onUploadDoc?: (fieldKey: string, file: File) => void;
   uploadingField?: string | null;
   loading?: boolean;
+  processingField?: string | null;
 }
 
 // ─── Single Document Card ─────────────────────────────────
@@ -37,6 +38,7 @@ function DocCard({
   onUpload,
   isUploading,
   loading,
+  processingField,
 }: {
   doc: DocItem;
   onView: (url: string, label: string) => void;
@@ -45,6 +47,7 @@ function DocCard({
   onUpload?: (fieldKey: string, file: File) => void;
   isUploading?: boolean;
   loading?: boolean;
+  processingField?: string | null;
 }) {
   console.log(`[KYC_DOC] Rendering doc: ${doc.label}`);
   console.log(`[KYC_DOC] URL received from API: ${doc.url}`);
@@ -195,7 +198,12 @@ function DocCard({
                 "transition-colors disabled:opacity-50"
               )}
             >
-              ✓ Approve
+              {processingField === doc.fieldKey ? (
+                <Loader2 size={11} className="animate-spin" />
+              ) : (
+                <CheckCircle size={11} />
+              )}
+              {processingField === doc.fieldKey ? "Approving..." : "Approve"}
             </button>
           )}
           {doc.status !== "REJECTED" && onReject && (
@@ -208,7 +216,12 @@ function DocCard({
                 "hover:bg-red-100 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
               )}
             >
-              ✕ Reject
+              {processingField === doc.fieldKey ? (
+                <Loader2 size={11} className="animate-spin" />
+              ) : (
+                <XCircle size={11} />
+              )}
+              {processingField === doc.fieldKey ? "Rejecting..." : "Reject"}
             </button>
           )}
         </div>
@@ -258,6 +271,7 @@ export function KycDocViewer({
   onUploadDoc,
   uploadingField,
   loading,
+  processingField,
 }: KycDocViewerProps) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [lightboxLabel, setLightboxLabel] = useState("");
@@ -307,6 +321,7 @@ export function KycDocViewer({
             onUpload={onUploadDoc}
             isUploading={uploadingField === doc.fieldKey}
             loading={loading}
+            processingField={processingField}
           />
         ))}
       </div>
@@ -557,7 +572,7 @@ export function KycActionBar({
           "hover:bg-red-100 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
         )}
       >
-        <XCircle size={14} />
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
         Reject KYC (all pending docs)
       </button>
       <button
@@ -569,7 +584,7 @@ export function KycActionBar({
           "shadow-purple-glow transition-colors disabled:opacity-50"
         )}
       >
-        <CheckCircle size={14} />
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
         Approve KYC
       </button>
     </div>

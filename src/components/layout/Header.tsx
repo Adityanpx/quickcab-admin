@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Search, ChevronDown, LogOut, User, Menu } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, User, Menu, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/constants/navigation";
 import { useAuthStore } from "@/stores/authStore";
@@ -44,6 +44,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [showProfile, setShowProfile] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Get current page label from nav items
   const currentPage = NAV_ITEMS.find((item) => {
@@ -66,6 +67,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   }, []);
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     try {
       await authApi.logout();
     } catch {
@@ -324,10 +326,15 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-brand-red hover:bg-brand-red-muted transition-colors"
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-brand-red hover:bg-brand-red-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <LogOut size={14} />
-                    Sign Out
+                    {isLoggingOut ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <LogOut size={14} />
+                    )}
+                    {isLoggingOut ? "Signing out..." : "Sign Out"}
                   </button>
                 </div>
               </motion.div>

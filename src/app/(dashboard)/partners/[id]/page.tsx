@@ -92,6 +92,7 @@ export default function PartnerDetailPage() {
   const uploadKycDocMutation = useAdminUploadKycDoc();
   const deleteMutation = useDeletePartner();
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [processingField, setProcessingField] = useState<string | null>(null);
   const { data: bookingsData, isLoading: bookingsLoading } = usePartnerBookings(partner?.id ?? "", bookingPage);
 
   if (isLoading) return <DashboardSkeleton />;
@@ -218,82 +219,92 @@ export default function PartnerDetailPage() {
   };
 
   const handleApproveDoc = async (fieldKey: string) => {
-    await reviewDocMutation.mutateAsync({
-      userId: partner.id,
-      document: fieldKey,
-      status: "APPROVED",
-    });
+    setProcessingField(fieldKey);
+    try {
+      await reviewDocMutation.mutateAsync({
+        userId: partner.id,
+        document: fieldKey,
+        status: "APPROVED",
+      });
 
-    // Fetch fresh data to check if all existing docs are now APPROVED
-    const freshPartner = await qc.fetchQuery({
-      queryKey: ["partners", partnerId],
-      queryFn: () => partnersApi.getById(partnerId),
-      staleTime: 0,
-    });
-    const freshKyc = freshPartner?.kycRecord;
-    if (!freshKyc) return;
+      // Fetch fresh data to check if all existing docs are now APPROVED
+      const freshPartner = await qc.fetchQuery({
+        queryKey: ["partners", partnerId],
+        queryFn: () => partnersApi.getById(partnerId),
+        staleTime: 0,
+      });
+      const freshKyc = freshPartner?.kycRecord;
+      if (!freshKyc) return;
 
-    const allApproved =
-      freshKyc.aadhaarFrontStatus === "APPROVED" &&
-      freshKyc.aadhaarBackStatus === "APPROVED" &&
-      freshKyc.selfieStatus === "APPROVED" &&
-      (!freshKyc.drivingLicenceUrl || freshKyc.drivingLicenceStatus === "APPROVED");
+      const allApproved =
+        freshKyc.aadhaarFrontStatus === "APPROVED" &&
+        freshKyc.aadhaarBackStatus === "APPROVED" &&
+        freshKyc.selfieStatus === "APPROVED" &&
+        (!freshKyc.drivingLicenceUrl || freshKyc.drivingLicenceStatus === "APPROVED");
 
-    const anyRejected =
-      freshKyc.aadhaarFrontStatus === "REJECTED" ||
-      freshKyc.aadhaarBackStatus === "REJECTED" ||
-      freshKyc.selfieStatus === "REJECTED" ||
-      (!!freshKyc.drivingLicenceUrl && freshKyc.drivingLicenceStatus === "REJECTED");
+      const anyRejected =
+        freshKyc.aadhaarFrontStatus === "REJECTED" ||
+        freshKyc.aadhaarBackStatus === "REJECTED" ||
+        freshKyc.selfieStatus === "REJECTED" ||
+        (!!freshKyc.drivingLicenceUrl && freshKyc.drivingLicenceStatus === "REJECTED");
 
-    if (allApproved && !anyRejected) {
-      await approveKycMutation.mutateAsync({ userId: partner.id, note: "All documents verified" });
+      if (allApproved && !anyRejected) {
+        await approveKycMutation.mutateAsync({ userId: partner.id, note: "All documents verified" });
+      }
+    } finally {
+      setProcessingField(null);
     }
   };
 
   const handleRejectDoc = async (fieldKey: string, reason: string) => {
-    await reviewDocMutation.mutateAsync({
-      userId: partner.id,
-      document: fieldKey,
-      status: "REJECTED",
-      rejectReason: reason,
-    });
+    setProcessingField(fieldKey);
+    try {
+      await reviewDocMutation.mutateAsync({
+        userId: partner.id,
+        document: fieldKey,
+        status: "REJECTED",
+        rejectReason: reason,
+      });
 
-    // Build KycRejectPayload: preserve existing APPROVED/REJECTED statuses,
-    // override the just-rejected doc, omit PENDING docs (undefined = no change)
-    const kyc = partner.kycRecord!;
+      // Build KycRejectPayload: preserve existing APPROVED/REJECTED statuses,
+      // override the just-rejected doc, omit PENDING docs (undefined = no change)
+      const kyc = partner.kycRecord!;
 
-    const resolveStatus = (
-      key: string,
-      current: "PENDING" | "APPROVED" | "REJECTED"
-    ): "APPROVED" | "REJECTED" | undefined => {
-      if (key === fieldKey) return "REJECTED";
-      if (current === "APPROVED" || current === "REJECTED") return current;
-      return undefined;
-    };
+      const resolveStatus = (
+        key: string,
+        current: "PENDING" | "APPROVED" | "REJECTED"
+      ): "APPROVED" | "REJECTED" | undefined => {
+        if (key === fieldKey) return "REJECTED";
+        if (current === "APPROVED" || current === "REJECTED") return current;
+        return undefined;
+      };
 
-    const resolveReason = (
-      key: string,
-      existingReason: string | null
-    ): string | undefined => {
-      if (key === fieldKey) return reason;
-      return existingReason ?? undefined;
-    };
+      const resolveReason = (
+        key: string,
+        existingReason: string | null
+      ): string | undefined => {
+        if (key === fieldKey) return reason;
+        return existingReason ?? undefined;
+      };
 
-    const payload: KycRejectPayload = {
-      adminNote: `Document rejected: ${fieldKey}`,
-      aadhaarFrontStatus: resolveStatus("aadhaarFront", kyc.aadhaarFrontStatus),
-      aadhaarFrontRejectReason: resolveReason("aadhaarFront", kyc.aadhaarRejectReason),
-      aadhaarBackStatus: resolveStatus("aadhaarBack", kyc.aadhaarBackStatus),
-      aadhaarBackRejectReason: resolveReason("aadhaarBack", kyc.aadhaarRejectReason),
-      selfieStatus: resolveStatus("selfie", kyc.selfieStatus),
-      selfieRejectReason: resolveReason("selfie", kyc.selfieRejectReason),
-      ...(kyc.drivingLicenceUrl && {
-        drivingLicenceStatus: resolveStatus("drivingLicence", kyc.drivingLicenceStatus),
-        drivingLicenceRejectReason: resolveReason("drivingLicence", kyc.drivingLicenceRejectReason),
-      }),
-    };
+      const payload: KycRejectPayload = {
+        adminNote: `Document rejected: ${fieldKey}`,
+        aadhaarFrontStatus: resolveStatus("aadhaarFront", kyc.aadhaarFrontStatus),
+        aadhaarFrontRejectReason: resolveReason("aadhaarFront", kyc.aadhaarRejectReason),
+        aadhaarBackStatus: resolveStatus("aadhaarBack", kyc.aadhaarBackStatus),
+        aadhaarBackRejectReason: resolveReason("aadhaarBack", kyc.aadhaarRejectReason),
+        selfieStatus: resolveStatus("selfie", kyc.selfieStatus),
+        selfieRejectReason: resolveReason("selfie", kyc.selfieRejectReason),
+        ...(kyc.drivingLicenceUrl && {
+          drivingLicenceStatus: resolveStatus("drivingLicence", kyc.drivingLicenceStatus),
+          drivingLicenceRejectReason: resolveReason("drivingLicence", kyc.drivingLicenceRejectReason),
+        }),
+      };
 
-    await rejectKycMutation.mutateAsync({ userId: partner.id, payload });
+      await rejectKycMutation.mutateAsync({ userId: partner.id, payload });
+    } finally {
+      setProcessingField(null);
+    }
   };
 
   const handleUploadDoc = async (fieldKey: string, file: File) => {
@@ -603,7 +614,7 @@ export default function PartnerDetailPage() {
                       <div className="flex justify-between text-[13px]">
                         <span className="text-light-text-2 dark:text-dark-text-2">Aadhaar</span>
                         <span className="font-mono text-light-text dark:text-dark-text">
-                          XXXX XXXX {kycRecord.aadhaarNumber.slice(-4)}
+                          {kycRecord.aadhaarNumber}
                         </span>
                       </div>
                     )}
@@ -722,6 +733,7 @@ export default function PartnerDetailPage() {
                     onUploadDoc={handleUploadDoc}
                     uploadingField={uploadingField}
                     loading={reviewDocMutation.isPending}
+                    processingField={processingField}
                   />
                 </>
               ) : (

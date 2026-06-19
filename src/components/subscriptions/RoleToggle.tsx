@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToggleSubscription } from "@/lib/hooks/useSubscriptions";
 
@@ -68,10 +69,14 @@ export function RoleToggle({
           layout
           transition={{ type: "spring", stiffness: 500, damping: 35 }}
           className={cn(
-            "inline-block h-4 w-4 rounded-full bg-white shadow-sm",
+            "inline-flex items-center justify-center h-4 w-4 rounded-full bg-white shadow-sm",
             enabled ? "translate-x-6" : "translate-x-1"
           )}
-        />
+        >
+          {toggleMutation.isPending && (
+            <Loader2 size={10} className="animate-spin text-brand-purple" />
+          )}
+        </motion.span>
       </button>
     </div>
   );
