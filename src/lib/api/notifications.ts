@@ -5,11 +5,10 @@ export type AudienceType =
   | "PARTNERS_ONLY"
   | "PROVIDERS_ONLY"
   | "CITY"
-  | "INDIVIDUAL"
   | "SPECIFIC_USERS";
 
 export type RoleFilter = "ALL" | "PARTNERS" | "PROVIDERS";
-export type Channel = "PUSH" | "WHATSAPP";
+export type Channel = "PUSH";
 
 export interface BroadcastPayload {
   title: string;
@@ -18,7 +17,6 @@ export interface BroadcastPayload {
   channels: Channel[];
   city?: string;
   roleFilter?: RoleFilter;
-  userId?: string;
   userIds?: string[];
   imageUrl?: string;
 }
@@ -87,5 +85,15 @@ export const notificationsApi = {
     });
 
     return response.data.data.publicUrl;
+  },
+
+  deleteHistoryItem: async (id: string) => {
+    const response = await apiClient.delete(`/notifications/admin/history/${id}`);
+    return response.data;
+  },
+
+  clearAllHistory: async () => {
+    const response = await apiClient.delete("/notifications/admin/history");
+    return response.data;
   },
 };

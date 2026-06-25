@@ -14,7 +14,7 @@ export default function NotificationsPage() {
       >
         <PageHeader
           title="Notifications"
-          subtitle="Broadcast messages to Partners and Service Providers via Push and WhatsApp"
+          subtitle="Broadcast messages to Partners and Service Providers via Push"
         />
       </motion.div>
 

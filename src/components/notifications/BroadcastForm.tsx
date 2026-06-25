@@ -10,17 +10,16 @@ import {
   Briefcase,
   Wrench,
   MapPin,
-  User,
   UserCheck,
   X,
   Search,
   Send,
   Bell,
-  MessageSquare,
   Image,
   Loader2,
+  Trash2,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import {
   notificationsApi,
@@ -28,7 +27,6 @@ import {
   type BroadcastHistoryItem,
   type UserSearchResult,
   type AudienceType,
-  type Channel,
 } from "@/lib/api/notifications";
 import { cn, formatRelative } from "@/lib/utils";
 import { useDebounce } from "@/lib/hooks/useDebounce";
@@ -43,12 +41,10 @@ const broadcastSchema = z
       "PARTNERS_ONLY",
       "PROVIDERS_ONLY",
       "CITY",
-      "INDIVIDUAL",
       "SPECIFIC_USERS",
     ]),
     city: z.string().optional(),
     roleFilter: z.enum(["ALL", "PARTNERS", "PROVIDERS"]).optional(),
-    userId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.audience === "CITY" && !data.city?.trim()) {
@@ -56,13 +52,6 @@ const broadcastSchema = z
         code: z.ZodIssueCode.custom,
         message: "City is required",
         path: ["city"],
-      });
-    }
-    if (data.audience === "INDIVIDUAL" && !data.userId?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "User ID is required",
-        path: ["userId"],
       });
     }
   });
@@ -100,12 +89,6 @@ const AUDIENCE_OPTIONS: {
     description: "Target users in a specific city",
   },
   {
-    key: "INDIVIDUAL",
-    label: "Individual",
-    icon: <User size={16} />,
-    description: "One specific user by ID",
-  },
-  {
     key: "SPECIFIC_USERS",
     label: "Specific Users",
     icon: <UserCheck size={16} />,
@@ -123,7 +106,7 @@ export function BroadcastForm() {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [channels, setChannels] = useState<Channel[]>(["PUSH"]);
+  const channels = ["PUSH"] as const;
   const [isSending, setIsSending] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<UserSearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -149,6 +132,40 @@ export function BroadcastForm() {
 
   const recentBroadcasts: BroadcastHistoryItem[] = historyData?.items ?? [];
 
+  const deleteHistoryMutation = useMutation({
+    mutationFn: (id: string) => notificationsApi.deleteHistoryItem(id),
+    onSuccess: () => {
+      toast.success("Broadcast removed from history");
+      qc.invalidateQueries({ queryKey: ["notifications", "history"] });
+    },
+    onError: () => {
+      toast.error("Failed to delete broadcast");
+    },
+  });
+
+  const clearAllHistoryMutation = useMutation({
+    mutationFn: () => notificationsApi.clearAllHistory(),
+    onSuccess: () => {
+      toast.success("History cleared");
+      qc.invalidateQueries({ queryKey: ["notifications", "history"] });
+    },
+    onError: () => {
+      toast.error("Failed to clear history");
+    },
+  });
+
+  const handleDeleteHistoryItem = (id: string) => {
+    if (window.confirm("Delete this broadcast from history?")) {
+      deleteHistoryMutation.mutate(id);
+    }
+  };
+
+  const handleClearAllHistory = () => {
+    if (window.confirm("Clear all broadcast history? This cannot be undone.")) {
+      clearAllHistoryMutation.mutate();
+    }
+  };
+
   const {
     register,
     handleSubmit,
@@ -166,12 +183,6 @@ export function BroadcastForm() {
   const message = watch("message") ?? "";
   const watchedCity = watch("city");
   const watchedRoleFilter = watch("roleFilter");
-
-  const toggleChannel = (channel: Channel) => {
-    setChannels((prev) =>
-      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]
-    );
-  };
 
   const addUser = (user: UserSearchResult) => {
     if (!selectedUsers.find((u) => u.id === user.id)) {
@@ -204,10 +215,6 @@ export function BroadcastForm() {
   };
 
   const onSubmit = async (data: BroadcastFormData) => {
-    if (channels.length === 0) {
-      toast.error("Select at least one delivery channel");
-      return;
-    }
     if (data.audience === "SPECIFIC_USERS" && selectedUsers.length === 0) {
       toast.error("Select at least one user");
       return;
@@ -218,10 +225,9 @@ export function BroadcastForm() {
         title: data.title,
         message: data.message,
         audience: data.audience,
-        channels,
+        channels: [...channels],
         city: data.audience === "CITY" ? data.city : undefined,
         roleFilter: data.audience === "CITY" ? (data.roleFilter ?? "ALL") : undefined,
-        userId: data.audience === "INDIVIDUAL" ? data.userId : undefined,
         userIds: data.audience === "SPECIFIC_USERS" ? selectedUsers.map((u) => u.id) : undefined,
         imageUrl: imageUrl || undefined,
       };
@@ -229,7 +235,6 @@ export function BroadcastForm() {
       toast.success("Notification broadcast sent successfully");
       qc.invalidateQueries({ queryKey: ["notifications", "history"] });
       reset();
-      setChannels(["PUSH"]);
       setSelectedUsers([]);
       setImageUrl("");
     } catch {
@@ -248,8 +253,6 @@ export function BroadcastForm() {
       ? "Providers Only"
       : selectedAudience === "CITY"
       ? `City: ${watchedCity || "—"}${watchedRoleFilter && watchedRoleFilter !== "ALL" ? ` (${watchedRoleFilter})` : ""}`
-      : selectedAudience === "INDIVIDUAL"
-      ? "Individual User"
       : `${selectedUsers.length} user${selectedUsers.length !== 1 ? "s" : ""} selected`;
 
   const filteredSearchResults = searchResults.filter(
@@ -257,9 +260,7 @@ export function BroadcastForm() {
   );
 
   const hasConditionalField =
-    selectedAudience === "CITY" ||
-    selectedAudience === "INDIVIDUAL" ||
-    selectedAudience === "SPECIFIC_USERS";
+    selectedAudience === "CITY" || selectedAudience === "SPECIFIC_USERS";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -321,7 +322,7 @@ export function BroadcastForm() {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
-                className="mt-3 overflow-hidden"
+                className="mt-3"
               >
                 {selectedAudience === "CITY" && (
                   <div className="space-y-3">
@@ -361,26 +362,6 @@ export function BroadcastForm() {
                         ))}
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {selectedAudience === "INDIVIDUAL" && (
-                  <div>
-                    <label className="block text-sm font-medium text-light-text dark:text-dark-text mb-1.5">
-                      User ID <span className="text-brand-red">*</span>
-                    </label>
-                    <input
-                      {...register("userId")}
-                      type="text"
-                      placeholder="Partner or Provider User ID..."
-                      className={cn(
-                        "input-base font-mono text-sm",
-                        errors.userId && "border-brand-red"
-                      )}
-                    />
-                    {errors.userId && (
-                      <p className="text-xs text-brand-red mt-1">{errors.userId.message}</p>
-                    )}
                   </div>
                 )}
 
@@ -467,81 +448,16 @@ export function BroadcastForm() {
         {/* Step 2: Channels */}
         <div className="card">
           <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text mb-3">
-            2. Delivery Channels
+            2. Delivery Channel
           </h3>
-          <div className="flex gap-3">
-            {(
-              [
-                {
-                  key: "PUSH" as Channel,
-                  label: "Push Notification",
-                  icon: <Bell size={16} />,
-                  desc: "Firebase FCM",
-                },
-                {
-                  key: "WHATSAPP" as Channel,
-                  label: "WhatsApp",
-                  icon: <MessageSquare size={16} />,
-                  desc: "WhatsApp Business API",
-                },
-              ] as const
-            ).map(({ key, label, icon, desc }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => toggleChannel(key)}
-                className={cn(
-                  "flex items-start gap-3 flex-1 p-3 rounded-xl border text-left transition-all duration-150",
-                  channels.includes(key)
-                    ? "border-brand-purple bg-brand-purple-muted dark:bg-brand-purple-muted-dark"
-                    : "border-light-border dark:border-dark-border hover:border-brand-purple/50"
-                )}
-              >
-                <div
-                  className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                    channels.includes(key)
-                      ? "bg-brand-purple text-white"
-                      : "bg-light-surface-2 dark:bg-dark-surface text-light-text-2 dark:text-dark-text-2"
-                  )}
-                >
-                  {icon}
-                </div>
-                <div>
-                  <p
-                    className={cn(
-                      "text-[13px] font-semibold",
-                      channels.includes(key)
-                        ? "text-brand-purple"
-                        : "text-light-text dark:text-dark-text"
-                    )}
-                  >
-                    {label}
-                  </p>
-                  <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">{desc}</p>
-                </div>
-                <div
-                  className={cn(
-                    "ml-auto w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5",
-                    channels.includes(key)
-                      ? "bg-brand-purple border-brand-purple"
-                      : "border-light-border dark:border-dark-border"
-                  )}
-                >
-                  {channels.includes(key) && (
-                    <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
-                      <path
-                        d="M1 3L3 5L7 1"
-                        stroke="white"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </div>
-              </button>
-            ))}
+          <div className="flex items-start gap-3 p-3 rounded-xl border border-brand-purple bg-brand-purple-muted dark:bg-brand-purple-muted-dark">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-brand-purple text-white">
+              <Bell size={16} />
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-brand-purple">Push Notification</p>
+              <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">Firebase FCM</p>
+            </div>
           </div>
         </div>
 
@@ -707,19 +623,29 @@ export function BroadcastForm() {
               </span>
             </div>
             <div className="flex items-center justify-between text-[12px]">
-              <span className="text-light-text-2 dark:text-dark-text-2">Channels</span>
-              <span className="font-medium text-light-text dark:text-dark-text">
-                {channels.length === 0 ? "None selected" : channels.join(" + ")}
-              </span>
+              <span className="text-light-text-2 dark:text-dark-text-2">Channel</span>
+              <span className="font-medium text-light-text dark:text-dark-text">PUSH</span>
             </div>
           </div>
         </div>
 
         {/* Recent broadcasts */}
         <div className="card">
-          <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text mb-3">
-            Recent Broadcasts
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text">
+              Recent Broadcasts
+            </h3>
+            {recentBroadcasts.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAllHistory}
+                disabled={clearAllHistoryMutation.isPending}
+                className="text-[11px] font-medium text-brand-red hover:text-brand-red/80 transition-colors disabled:opacity-50"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
           {recentBroadcasts.length === 0 ? (
             <p className="text-[13px] text-light-text-3 dark:text-dark-text-3 text-center py-6">
               No broadcasts sent yet
@@ -739,9 +665,20 @@ export function BroadcastForm() {
                       className="w-full h-16 object-cover rounded-lg mb-2"
                     />
                   )}
-                  <p className="text-[13px] font-medium text-light-text dark:text-dark-text">
-                    {b.title}
-                  </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[13px] font-medium text-light-text dark:text-dark-text">
+                      {b.title}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteHistoryItem(b.id)}
+                      disabled={deleteHistoryMutation.isPending}
+                      className="shrink-0 text-light-text-3 dark:text-dark-text-3 hover:text-brand-red transition-colors disabled:opacity-50"
+                      aria-label="Delete broadcast"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                   <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
                     {b.audience}
                     {b.roleFilter && b.roleFilter !== "ALL" ? ` · ${b.roleFilter}` : ""}
