@@ -8,6 +8,80 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// ─── Inline loaders (unique to KYC flow) ──────────────────
+// Three-dot pulse loader — replaces Loader2 inside KYC action buttons.
+// Tiny enough for xs buttons, smooth without dependencies.
+function ThreeDotsLoader({ tone = "currentColor" }: { tone?: string }) {
+  return (
+    <span
+      role="status"
+      aria-label="Loading"
+      className="inline-flex items-center gap-[3px]"
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="inline-block w-[5px] h-[5px] rounded-full kyc-dot-pulse"
+          style={{
+            background: tone,
+            animationDelay: `${i * 140}ms`,
+          }}
+        />
+      ))}
+      <style jsx>{`
+        @keyframes kycDotPulse {
+          0%, 80%, 100% { transform: scale(0.6); opacity: 0.45; }
+          40%           { transform: scale(1);   opacity: 1;    }
+        }
+        .kyc-dot-pulse {
+          animation: kycDotPulse 1s ease-in-out infinite both;
+        }
+      `}</style>
+    </span>
+  );
+}
+
+// Card-level processing overlay — sits on top of the doc image while the
+// admin's approve/reject is in-flight on THIS specific card. Tone = brand
+// colour for approve (purple) or red for reject.
+function CardProcessingOverlay({ label, tone }: { label: string; tone: "approve" | "reject" }) {
+  const ring = tone === "approve" ? "#7C5CFF" : "#EF4444";
+  const text = tone === "approve" ? "Approving" : "Rejecting";
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-black/55 via-black/45 to-black/55 backdrop-blur-[2px] pointer-events-none"
+    >
+      {/* Spinning ring with fading tail */}
+      <svg width="34" height="34" viewBox="0 0 34 34" className="kyc-ring-spin">
+        <defs>
+          <linearGradient id={`kyc-tail-${tone}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"  stopColor={ring} stopOpacity="0" />
+            <stop offset="100%" stopColor={ring} stopOpacity="1" />
+          </linearGradient>
+        </defs>
+        <circle cx="17" cy="17" r="13" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2.5" />
+        <circle
+          cx="17" cy="17" r="13" fill="none"
+          stroke={`url(#kyc-tail-${tone})`}
+          strokeWidth="2.5" strokeLinecap="round"
+          strokeDasharray="55 100" transform="rotate(-90 17 17)"
+        />
+      </svg>
+      <p className="text-[11px] font-semibold text-white tracking-wide">
+        {text} {label}…
+      </p>
+      <style jsx>{`
+        @keyframes kycRingSpin { to { transform: rotate(360deg); } }
+        .kyc-ring-spin { animation: kycRingSpin 0.9s linear infinite; }
+      `}</style>
+    </motion.div>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────
 export interface DocItem {
   label: string;
@@ -114,14 +188,26 @@ function DocCard({
     );
   }
 
+  const isProcessing = processingField === doc.fieldKey;
+
   return (
     <div
       className={cn(
-        "rounded-xl overflow-hidden border-2",
+        "rounded-xl overflow-hidden border-2 transition-all",
         statusBorder, statusBg,
-        "bg-white dark:bg-dark-surface transition-colors"
+        "bg-white dark:bg-dark-surface",
+        isProcessing && "kyc-card-glow"
       )}
     >
+      {isProcessing && (
+        <style jsx>{`
+          @keyframes kycCardGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.0); }
+            50%      { box-shadow: 0 0 0 6px rgba(124, 92, 255, 0.18); }
+          }
+          .kyc-card-glow { animation: kycCardGlow 1.4s ease-in-out infinite; }
+        `}</style>
+      )}
       {/* Resubmitted badge */}
       {doc.isResubmitted && (
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-purple text-white text-[11px] font-semibold">
@@ -152,6 +238,16 @@ function DocCard({
         />
         {/* Subtle dark tint on hover — no buttons */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 pointer-events-none" />
+
+        {/* Processing overlay — only on the card currently being approved/rejected */}
+        <AnimatePresence>
+          {processingField === doc.fieldKey && (
+            <CardProcessingOverlay
+              label={doc.label}
+              tone={doc.status === "REJECTED" ? "reject" : "approve"}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Label + status */}
@@ -199,7 +295,7 @@ function DocCard({
               )}
             >
               {processingField === doc.fieldKey ? (
-                <Loader2 size={11} className="animate-spin" />
+                <ThreeDotsLoader tone="#FFFFFF" />
               ) : (
                 <CheckCircle size={11} />
               )}
@@ -217,7 +313,7 @@ function DocCard({
               )}
             >
               {processingField === doc.fieldKey ? (
-                <Loader2 size={11} className="animate-spin" />
+                <ThreeDotsLoader />
               ) : (
                 <XCircle size={11} />
               )}
@@ -533,12 +629,21 @@ export function KycActionBar({
   onApprove,
   onReject,
   loading,
+  approving,
+  rejecting,
 }: {
   kycStatus: string;
   onApprove: () => void;
   onReject: () => void;
   loading?: boolean;
+  // Optional, additive — when provided, only the matching button shows a
+  // spinner. Falls back to `loading` so existing callers keep working.
+  approving?: boolean;
+  rejecting?: boolean;
 }) {
+  const showApproveSpinner = approving ?? loading ?? false;
+  const showRejectSpinner  = rejecting ?? loading ?? false;
+  const isBusy = !!(loading || approving || rejecting);
   if (kycStatus === "APPROVED") {
     return (
       <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 dark:bg-brand-green-muted border border-green-200 dark:border-brand-green/20">
@@ -565,27 +670,57 @@ export function KycActionBar({
     <div className="flex items-center gap-3">
       <button
         onClick={onReject}
-        disabled={loading}
+        disabled={isBusy}
         className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-medium",
+          "relative overflow-hidden flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-medium",
           "text-brand-red bg-brand-red-muted border border-brand-red/20",
-          "hover:bg-red-100 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
+          "hover:bg-red-100 dark:hover:bg-red-950 transition-colors disabled:opacity-60"
         )}
       >
-        {loading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-        Reject KYC (all pending docs)
+        {showRejectSpinner ? <ThreeDotsLoader /> : <XCircle size={14} />}
+        {showRejectSpinner ? "Rejecting KYC..." : "Reject KYC (all pending docs)"}
+        {showRejectSpinner && (
+          <>
+            <span className="kyc-shimmer absolute inset-0 pointer-events-none" />
+            <style jsx>{`
+              @keyframes kycShimmer {
+                0%   { transform: translateX(-120%); }
+                100% { transform: translateX(120%); }
+              }
+              .kyc-shimmer {
+                background: linear-gradient(90deg, transparent, rgba(239,68,68,0.18), transparent);
+                animation: kycShimmer 1.4s ease-in-out infinite;
+              }
+            `}</style>
+          </>
+        )}
       </button>
       <button
         onClick={onApprove}
-        disabled={loading}
+        disabled={isBusy}
         className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-medium",
+          "relative overflow-hidden flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-medium",
           "text-white bg-brand-purple hover:bg-brand-purple-dark",
-          "shadow-purple-glow transition-colors disabled:opacity-50"
+          "shadow-purple-glow transition-colors disabled:opacity-60"
         )}
       >
-        {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-        Approve KYC
+        {showApproveSpinner ? <ThreeDotsLoader tone="#FFFFFF" /> : <CheckCircle size={14} />}
+        {showApproveSpinner ? "Approving KYC..." : "Approve KYC"}
+        {showApproveSpinner && (
+          <>
+            <span className="kyc-shimmer-approve absolute inset-0 pointer-events-none" />
+            <style jsx>{`
+              @keyframes kycShimmerApprove {
+                0%   { transform: translateX(-120%); }
+                100% { transform: translateX(120%); }
+              }
+              .kyc-shimmer-approve {
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+                animation: kycShimmerApprove 1.4s ease-in-out infinite;
+              }
+            `}</style>
+          </>
+        )}
       </button>
     </div>
   );

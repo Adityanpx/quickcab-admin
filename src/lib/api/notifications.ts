@@ -44,9 +44,37 @@ export interface BroadcastHistoryItem {
   sentAt: string | null;
 }
 
+export const TEST_NOTIF_TYPES: { group: string; value: string; label: string }[] = [
+  { group: "KYC", value: "KYC_APPROVED", label: "KYC Approved" },
+  { group: "KYC", value: "KYC_REJECTED", label: "KYC Rejected" },
+  { group: "Booking", value: "BOOKING_NEW", label: "New Booking (city-routed channel)" },
+  { group: "Booking", value: "BOOKING_BOOKED", label: "Booking Accepted" },
+  { group: "Booking", value: "BOOKING_CONFIRMED", label: "Booking Confirmed" },
+  { group: "Booking", value: "BOOKING_REJECTED", label: "Booking Rejected" },
+  { group: "Booking", value: "BOOKING_CANCELLED", label: "Booking Cancelled" },
+  { group: "Booking", value: "BOOKING_EXPIRED", label: "Booking Expired" },
+  { group: "Wallet", value: "WALLET_CREDIT", label: "Wallet Credit" },
+  { group: "Wallet", value: "WALLET_WITHDRAWAL", label: "Wallet Withdrawal" },
+  { group: "Service Request", value: "SERVICE_REQUEST_NEW", label: "New Service Request" },
+  { group: "Service Request", value: "SERVICE_REQUEST_ACCEPTED", label: "Service Request Accepted" },
+  { group: "Service Request", value: "SERVICE_REQUEST_COMPLETED", label: "Service Request Completed" },
+  { group: "General", value: "GENERAL", label: "General / Test" },
+];
+
+export interface TestSendPayload {
+  userId: string;
+  notifType: string;
+  city?: string;
+}
+
 export const notificationsApi = {
   broadcast: async (payload: BroadcastPayload) => {
     const response = await apiClient.post("/notifications/admin/broadcast", payload);
+    return response.data;
+  },
+
+  testSend: async (payload: TestSendPayload) => {
+    const response = await apiClient.post("/notifications/admin/test-send", payload);
     return response.data;
   },
 

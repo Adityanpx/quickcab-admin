@@ -642,6 +642,8 @@ export default function PartnerDetailPage() {
                         onApprove={handleApproveKyc}
                         onReject={() => setRejectNoteOpen(true)}
                         loading={approveKycMutation.isPending || rejectKycMutation.isPending}
+                        approving={approveKycMutation.isPending}
+                        rejecting={rejectKycMutation.isPending}
                       />
                       {showMixedStatusHint && kycRecord.status === "PENDING" && (
                         <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1.5">
@@ -700,6 +702,8 @@ export default function PartnerDetailPage() {
                       onApprove={handleApproveKyc}
                       onReject={() => setRejectNoteOpen(true)}
                       loading={approveKycMutation.isPending || rejectKycMutation.isPending}
+                      approving={approveKycMutation.isPending}
+                      rejecting={rejectKycMutation.isPending}
                     />
                   </div>
 
