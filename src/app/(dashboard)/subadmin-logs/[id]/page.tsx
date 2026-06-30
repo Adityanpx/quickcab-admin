@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Activity,
   ShieldOff,
-  ShieldAlert,
   ShieldCheck,
   User,
   BookOpen,
@@ -17,26 +16,45 @@ import {
   Trash2,
   Filter,
   Calendar,
-  Clock,
+  Pencil,
+  KeyRound,
 } from "lucide-react";
 import {
-  useSubAdminLogs,
-  useRestrictSubAdmin,
-  useUnrestrictSubAdmin,
-  useSubAdminSummary,
-} from "@/lib/hooks/useDashboard";
+  useAdminAccountDetail,
+  useAdminAccountActivity,
+  useDeactivateAdminAccount,
+  useReactivateAdminAccount,
+} from "@/lib/hooks/useAdminAccounts";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { TableRowSkeleton } from "@/components/ui/SkeletonLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
+import { Badge } from "@/components/ui/Badge";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { EditSubAdminModal } from "@/components/admin-accounts/EditSubAdminModal";
+import { ResetPasswordModal } from "@/components/admin-accounts/ResetPasswordModal";
 import { cn, formatDateTime } from "@/lib/utils";
-import type { SubAdminLog } from "@/lib/api/dashboard";
+import type { AdminActivityLog } from "@/lib/api/admin-accounts";
 
-// ─── Reuse action meta from main page ────────────────────
+// ─── Action label map for breakdown display ───────────────
+const ACTION_SHORT: Record<string, string> = {
+  KYC_APPROVED: "KYC Approved",
+  KYC_REJECTED: "KYC Rejected",
+  KYC_DOCUMENT_APPROVED: "Doc Approved",
+  KYC_DOCUMENT_REJECTED: "Doc Rejected",
+  KYC_DOC_IMAGE_REPLACED: "Doc Replaced",
+  USER_SUSPENDED: "Suspended",
+  USER_UNSUSPENDED: "Unsuspended",
+  USER_BLOCKED: "Blocked",
+  USER_UNBLOCKED: "Unblocked",
+  USER_DELETED: "Deleted",
+  BOOKING_CANCELLED: "Booking Cancelled",
+  BOOKING_DELETED: "Booking Deleted",
+};
+
+// ─── Action meta for the activity table ───────────────────
 const ACTION_META: Record<
   string,
   { label: string; color: string; bg: string; icon: React.ReactNode }
@@ -46,7 +64,7 @@ const ACTION_META: Record<
   KYC_DOCUMENT_APPROVED: { label: "Document Approved", color: "text-green-700 dark:text-brand-green", bg: "bg-green-50 dark:bg-brand-green-muted/20", icon: <CheckCircle size={11} /> },
   KYC_DOCUMENT_REJECTED: { label: "Document Rejected", color: "text-brand-red", bg: "bg-brand-red-muted", icon: <XCircle size={11} /> },
   KYC_DOC_IMAGE_REPLACED: { label: "Doc Image Replaced", color: "text-brand-purple", bg: "bg-brand-purple-muted dark:bg-brand-purple-muted-dark", icon: <FileCheck size={11} /> },
-  USER_SUSPENDED: { label: "User Suspended", color: "text-orange-700 dark:text-brand-orange", bg: "bg-orange-50 dark:bg-brand-orange-muted", icon: <ShieldAlert size={11} /> },
+  USER_SUSPENDED: { label: "User Suspended", color: "text-orange-700 dark:text-brand-orange", bg: "bg-orange-50 dark:bg-brand-orange-muted", icon: <ShieldOff size={11} /> },
   USER_UNSUSPENDED: { label: "User Unsuspended", color: "text-green-700 dark:text-brand-green", bg: "bg-green-50 dark:bg-brand-green-muted/20", icon: <ShieldCheck size={11} /> },
   USER_BLOCKED: { label: "User Blocked", color: "text-brand-red", bg: "bg-brand-red-muted", icon: <ShieldOff size={11} /> },
   USER_UNBLOCKED: { label: "User Unblocked", color: "text-green-700 dark:text-brand-green", bg: "bg-green-50 dark:bg-brand-green-muted/20", icon: <ShieldCheck size={11} /> },
@@ -75,126 +93,25 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
-function TargetCell({ log }: { log: SubAdminLog }) {
+// There's no human-readable target name in the new AuditLog-backed activity
+// shape (no targetName field) — every row renders the truncated ID as a
+// clickable badge, since the target may still exist and be worth jumping to.
+function TargetCell({ log }: { log: AdminActivityLog }) {
   const router = useRouter();
-  const isDeleted = log.action === "USER_DELETED";
   const isBooking = log.targetType === "BOOKING";
-  const displayName = log.targetName ?? `#${log.targetId.slice(-8).toUpperCase()}`;
+  const displayId = `#${log.targetId.slice(-8).toUpperCase()}`;
   const icon = isBooking
     ? <BookOpen size={12} className="shrink-0" />
     : <User size={12} className="shrink-0" />;
 
-  if (isDeleted) {
-    return (
-      <span className="flex items-center gap-1.5 text-[12px] text-light-text-3 dark:text-dark-text-3 line-through">
-        {icon}
-        <span className="truncate max-w-[140px]">{displayName}</span>
-      </span>
-    );
-  }
   return (
     <button
       onClick={() => router.push(isBooking ? `/bookings/${log.targetId}` : `/partners/${log.targetId}`)}
       className="flex items-center gap-1.5 text-[12px] font-medium text-brand-purple hover:underline transition-colors text-left"
     >
       {icon}
-      <span className="truncate max-w-[140px]">{displayName}</span>
+      <span className="truncate max-w-[140px]">{displayId}</span>
     </button>
-  );
-}
-
-// ─── Restrict Modal ───────────────────────────────────────
-function RestrictModal({
-  isOpen,
-  onClose,
-  name,
-  type,
-  onConfirm,
-  loading,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  name: string;
-  type: "SUSPENDED" | "BLOCKED";
-  onConfirm: (reason: string) => void;
-  loading: boolean;
-}) {
-  const [reason, setReason] = useState("");
-  const [error, setError] = useState("");
-
-  const handleClose = () => {
-    setReason("");
-    setError("");
-    onClose();
-  };
-
-  const handleConfirm = () => {
-    const trimmed = reason.trim();
-    if (!trimmed || trimmed.length < 5) {
-      setError("Please provide a reason (at least 5 characters)");
-      return;
-    }
-    onConfirm(trimmed);
-  };
-
-  const isSuspend = type === "SUSPENDED";
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={isSuspend ? `Suspend ${name}` : `Block ${name} Permanently`}
-      size="sm"
-      footer={
-        <>
-          <Button variant="outline" size="sm" onClick={handleClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleConfirm}
-            loading={loading}
-            className={isSuspend
-              ? "!bg-brand-orange !text-white hover:!bg-orange-600"
-              : "!bg-brand-red !text-white hover:!bg-red-700"
-            }
-          >
-            {isSuspend ? "Suspend SubAdmin" : "Block SubAdmin"}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className={cn(
-          "px-3 py-2.5 rounded-xl border text-[12px] leading-relaxed",
-          isSuspend
-            ? "bg-orange-50 dark:bg-brand-orange-muted border-brand-orange/20 text-orange-700 dark:text-brand-orange"
-            : "bg-brand-red-muted border-brand-red/20 text-brand-red"
-        )}>
-          {isSuspend
-            ? `${name} will immediately lose the ability to perform any actions in the SubAdmin panel. They will see this reason when they try to do anything.`
-            : `${name} will be permanently blocked. They will not be able to perform any actions until an admin unblocks them.`
-          }
-        </div>
-        <div>
-          <label className="block text-[12px] font-medium text-light-text dark:text-dark-text mb-1.5">
-            Reason <span className="text-brand-red">*</span>
-          </label>
-          <textarea
-            rows={3}
-            value={reason}
-            onChange={(e) => { setReason(e.target.value); setError(""); }}
-            placeholder={isSuspend
-              ? "e.g. Approving KYC without proper verification..."
-              : "e.g. Repeated policy violations..."
-            }
-            className={cn("input-base resize-none w-full", error && "border-brand-red")}
-            autoFocus
-          />
-          {error && <p className="text-xs text-brand-red mt-1">{error}</p>}
-        </div>
-      </div>
-    </Modal>
   );
 }
 
@@ -203,7 +120,7 @@ function SubAdminDetailContent() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const name = decodeURIComponent(params.name as string);
+  const id = params.id as string;
 
   const page = Number(searchParams.get("page") ?? "1");
   const action = searchParams.get("action") ?? "";
@@ -218,56 +135,41 @@ function SubAdminDetailContent() {
     });
     router.replace(`?${p.toString()}`);
   }
-  const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [showBlockModal, setShowBlockModal] = useState(false);
-  const [isRestricting, setIsRestricting] = useState(false);
-  const [isUnrestricting, setIsUnrestricting] = useState(false);
 
-  // Get this subadmin's summary info (restriction status, total actions etc.)
-  const { data: summary } = useSubAdminSummary();
-  const subAdminInfo = summary?.find((s) => s.name === name);
-  const restriction = subAdminInfo?.restriction ?? null;
-  const isSuspended = restriction?.status === "SUSPENDED";
-  const isBlocked = restriction?.status === "BLOCKED";
-  const isRestricted = !!restriction;
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [showReactivateConfirm, setShowReactivateConfirm] = useState(false);
 
-  const { data, isLoading } = useSubAdminLogs({
+  const { data: detail, isLoading: isLoadingDetail } = useAdminAccountDetail(id);
+
+  const { data, isLoading } = useAdminAccountActivity(id, {
     page,
-    subAdminName: name,
     action: action || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
   });
 
-  const restrictMutation = useRestrictSubAdmin();
-  const unrestrictMutation = useUnrestrictSubAdmin();
+  const deactivateMutation = useDeactivateAdminAccount();
+  const reactivateMutation = useReactivateAdminAccount();
 
   const logs = data?.items ?? [];
   const pagination = data?.pagination;
   const hasActiveFilters = !!(action || dateFrom || dateTo);
 
-  const handleRestrict = useCallback(
-    async (type: "SUSPENDED" | "BLOCKED", reason: string) => {
-      setIsRestricting(true);
-      try {
-        await restrictMutation.mutateAsync({ name, status: type, reason });
-        setShowSuspendModal(false);
-        setShowBlockModal(false);
-      } finally {
-        setIsRestricting(false);
-      }
-    },
-    [name, restrictMutation]
-  );
+  const handleDeactivate = useCallback(async () => {
+    await deactivateMutation.mutateAsync(id);
+    setShowDeactivateConfirm(false);
+  }, [id, deactivateMutation]);
 
-  const handleUnrestrict = useCallback(async () => {
-    setIsUnrestricting(true);
-    try {
-      await unrestrictMutation.mutateAsync(name);
-    } finally {
-      setIsUnrestricting(false);
-    }
-  }, [name, unrestrictMutation]);
+  const handleReactivate = useCallback(async () => {
+    await reactivateMutation.mutateAsync(id);
+    setShowReactivateConfirm(false);
+  }, [id, reactivateMutation]);
+
+  const breakdown = detail
+    ? Object.entries(detail.stats.actionsByType).sort((a, b) => b[1] - a[1])
+    : [];
 
   return (
     <div className="space-y-6">
@@ -286,86 +188,88 @@ function SubAdminDetailContent() {
         </button>
 
         <PageHeader
-          title={name}
+          title={detail?.name ?? (isLoadingDetail ? "Loading..." : "SubAdmin")}
           subtitle={
-            subAdminInfo
-              ? `${subAdminInfo.totalActions.toLocaleString("en-IN")} total actions${subAdminInfo.lastActiveAt ? ` · Last active ${formatDateTime(subAdminInfo.lastActiveAt)}` : ""}`
+            detail
+              ? `${detail.stats.totalActions.toLocaleString("en-IN")} total actions${detail.lastLoginAt ? ` · Last login ${formatDateTime(detail.lastLoginAt)}` : ""}`
               : "SubAdmin activity log"
           }
           actions={
-            <div className="flex items-center gap-2">
-              {/* Status badge */}
-              {isRestricted ? (
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold",
-                  isBlocked
-                    ? "bg-brand-red-muted text-brand-red"
-                    : "bg-orange-50 dark:bg-brand-orange-muted text-orange-700 dark:text-brand-orange"
-                )}>
-                  {isBlocked ? <ShieldOff size={11} /> : <ShieldAlert size={11} />}
-                  {isBlocked ? "Blocked" : "Suspended"}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-green-50 dark:bg-brand-green-muted/20 text-green-700 dark:text-brand-green">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 dark:bg-brand-green" />
-                  Active
-                </span>
-              )}
+            detail && (
+              <div className="flex items-center gap-2">
+                {detail.isActive ? (
+                  <Badge variant="active" dot>
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="gray" dot>
+                    Inactive
+                  </Badge>
+                )}
 
-              {/* Action buttons */}
-              {isRestricted ? (
                 <Button
                   variant="outline"
                   size="sm"
-                  icon={<ShieldCheck size={14} />}
-                  onClick={handleUnrestrict}
-                  loading={isUnrestricting}
+                  icon={<Pencil size={14} />}
+                  onClick={() => setShowEditModal(true)}
                 >
-                  {isBlocked ? "Unblock" : "Unsuspend"}
+                  Edit
                 </Button>
-              ) : (
-                <>
-                  <Button
-                    size="sm"
-                    icon={<ShieldAlert size={14} />}
-                    onClick={() => setShowSuspendModal(true)}
-                    className="!bg-brand-orange !text-white hover:!bg-orange-600"
-                  >
-                    Suspend
-                  </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<KeyRound size={14} />}
+                  onClick={() => setShowResetModal(true)}
+                >
+                  Reset Password
+                </Button>
+
+                {detail.isActive ? (
                   <Button
                     size="sm"
                     icon={<ShieldOff size={14} />}
-                    onClick={() => setShowBlockModal(true)}
-                    className="!bg-brand-red !text-white hover:!bg-red-700"
+                    onClick={() => setShowDeactivateConfirm(true)}
+                    className="!bg-brand-orange !text-white hover:!bg-orange-600"
                   >
-                    Block
+                    Deactivate
                   </Button>
-                </>
-              )}
-            </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    icon={<ShieldCheck size={14} />}
+                    onClick={() => setShowReactivateConfirm(true)}
+                  >
+                    Reactivate
+                  </Button>
+                )}
+              </div>
+            )
           }
         />
       </motion.div>
 
-      {/* Current restriction reason — shown when restricted */}
-      {isRestricted && restriction && (
+      {/* Action breakdown box */}
+      {breakdown.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className={cn(
-            "px-4 py-3 rounded-xl border",
-            isBlocked
-              ? "bg-brand-red-muted border-brand-red/20"
-              : "bg-orange-50 dark:bg-brand-orange-muted border-brand-orange/20"
-          )}
+          transition={{ delay: 0.05, duration: 0.3 }}
+          className="card p-4"
         >
-          <p className={cn("text-[13px] font-semibold mb-0.5", isBlocked ? "text-brand-red" : "text-orange-700 dark:text-brand-orange")}>
-            {isBlocked ? "Permanently Blocked" : "Currently Suspended"}
+          <p className="text-[12px] font-medium text-light-text-2 dark:text-dark-text-2 mb-2.5">
+            Action breakdown
           </p>
-          <p className={cn("text-[12px] leading-relaxed", isBlocked ? "text-brand-red/80" : "text-orange-600 dark:text-brand-orange/80")}>
-            Reason: {restriction.reason}
-          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {breakdown.map(([actionType, count]) => (
+              <span
+                key={actionType}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-light-surface-2 dark:bg-dark-surface text-light-text-2 dark:text-dark-text-2 border border-light-border dark:border-dark-border"
+              >
+                {ACTION_SHORT[actionType] ?? actionType.replace(/_/g, " ")}
+                <span className="font-bold text-brand-purple">{count}</span>
+              </span>
+            ))}
+          </div>
         </motion.div>
       )}
 
@@ -429,7 +333,6 @@ function SubAdminDetailContent() {
               <tr>
                 <th className="pl-5">Action</th>
                 <th>Target</th>
-                <th>Reason</th>
                 <th>IP Address</th>
                 <th className="pr-5 whitespace-nowrap">Timestamp</th>
               </tr>
@@ -437,17 +340,17 @@ function SubAdminDetailContent() {
             <tbody>
               {isLoading ? (
                 Array.from({ length: 10 }).map((_, i) => (
-                  <TableRowSkeleton key={i} cols={5} />
+                  <TableRowSkeleton key={i} cols={4} />
                 ))
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={4}>
                     <EmptyState
                       icon={<Activity size={22} />}
                       title="No actions found"
                       description={hasActiveFilters
                         ? "No actions match your filters. Try adjusting them."
-                        : `${name} hasn't taken any actions yet.`
+                        : `${detail?.name ?? "This subadmin"} hasn't taken any actions yet.`
                       }
                     />
                   </td>
@@ -465,15 +368,6 @@ function SubAdminDetailContent() {
                     </td>
                     <td>
                       <TargetCell log={log} />
-                    </td>
-                    <td>
-                      {log.reason ? (
-                        <span title={log.reason} className="text-[12px] text-light-text-2 dark:text-dark-text-2 truncate max-w-[200px] block">
-                          {log.reason}
-                        </span>
-                      ) : (
-                        <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">—</span>
-                      )}
                     </td>
                     <td>
                       <span className="text-[11px] font-mono text-light-text-3 dark:text-dark-text-3">
@@ -497,31 +391,48 @@ function SubAdminDetailContent() {
               page={page}
               totalPages={pagination.totalPages}
               total={pagination.total}
-              limit={20}
+              limit={pagination.limit}
               onPageChange={(n) => updateParams({ page: String(n) })}
             />
           </div>
         )}
       </motion.div>
 
-      {/* Suspend Modal */}
-      <RestrictModal
-        isOpen={showSuspendModal}
-        onClose={() => setShowSuspendModal(false)}
-        name={name}
-        type="SUSPENDED"
-        onConfirm={(reason) => handleRestrict("SUSPENDED", reason)}
-        loading={isRestricting}
+      {/* Edit modal */}
+      <EditSubAdminModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        account={detail ? { id: detail.id, name: detail.name, email: detail.email } : null}
       />
 
-      {/* Block Modal */}
-      <RestrictModal
-        isOpen={showBlockModal}
-        onClose={() => setShowBlockModal(false)}
-        name={name}
-        type="BLOCKED"
-        onConfirm={(reason) => handleRestrict("BLOCKED", reason)}
-        loading={isRestricting}
+      {/* Reset password modal */}
+      <ResetPasswordModal
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        account={detail ? { id: detail.id, name: detail.name } : null}
+      />
+
+      {/* Deactivate confirm */}
+      <ConfirmModal
+        isOpen={showDeactivateConfirm}
+        onClose={() => setShowDeactivateConfirm(false)}
+        onConfirm={handleDeactivate}
+        title={`Deactivate ${detail?.name ?? "this subadmin"}?`}
+        description={`${detail?.name ?? "This subadmin"} will be immediately logged out and unable to log back in until reactivated.`}
+        confirmLabel="Deactivate"
+        variant="warning"
+        loading={deactivateMutation.isPending}
+      />
+
+      {/* Reactivate confirm */}
+      <ConfirmModal
+        isOpen={showReactivateConfirm}
+        onClose={() => setShowReactivateConfirm(false)}
+        onConfirm={handleReactivate}
+        title={`Reactivate ${detail?.name ?? "this subadmin"}?`}
+        description={`${detail?.name ?? "This subadmin"} will be able to log in again immediately.`}
+        confirmLabel="Reactivate"
+        loading={reactivateMutation.isPending}
       />
     </div>
   );
