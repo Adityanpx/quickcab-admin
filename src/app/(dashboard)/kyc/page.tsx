@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { Suspense, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { FileCheck, CheckCircle, XCircle, Clock } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useKycQueue, useApproveKyc, useRejectKyc } from "@/lib/hooks/usePartners";
 import { useDashboardStats } from "@/lib/hooks/useDashboard";
 import type { KycRejectPayload } from "@/lib/api/partners";
@@ -55,12 +55,29 @@ interface KycQueueItem {
   displayId?: string | null;
 }
 
-export default function KycQueuePage() {
+function KycQueuePageContent() {
   const router = useRouter();
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [datePreset, setDatePreset] = useState("");
+  const searchParams = useSearchParams();
+
+  // ── URL-driven filter state (survives back-navigation) ───────────────────
+  const page         = Number(searchParams.get("page") ?? "1");
+  const search       = searchParams.get("search") ?? "";
+  const statusFilter = searchParams.get("status") ?? "";
+  const datePreset   = searchParams.get("datePreset") ?? "";
+
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
+
+  const updateParams = useCallback((updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParamsRef.current.toString());
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+      else params.delete(k);
+    });
+    router.replace(`?${params.toString()}`);
+  }, [router]);
+
+  // ── UI-only modal state (correctly local) ────────────────────────────────
   const [rejectTarget, setRejectTarget] = useState<{ userId: string; name: string } | null>(null);
   const [rejectNote, setRejectNote] = useState("");
 
@@ -89,9 +106,11 @@ export default function KycQueuePage() {
   const rejectKycMutation = useRejectKyc();
 
   const handleSearch = useCallback((v: string) => {
-    setSearch(v);
-    setPage(1);
-  }, []);
+    // Guard against SearchInput's onSearch firing with the same value on mount,
+    // which would needlessly reset the page.
+    if (v === (searchParamsRef.current.get("search") ?? "")) return;
+    updateParams({ search: v, page: "1" });
+  }, [updateParams]);
 
   const handleApprove = async (userId: string) => {
     await approveKycMutation.mutateAsync({ userId });
@@ -186,18 +205,19 @@ export default function KycQueuePage() {
         <SearchInput
           placeholder="Search by name or mobile..."
           onSearch={handleSearch}
+          defaultValue={search}
           className="sm:w-64"
         />
         <FilterSelect
           value={statusFilter}
-          onChange={(v) => { setStatusFilter(v); setPage(1); }}
+          onChange={(v) => updateParams({ status: v, page: "1" })}
           options={STATUS_OPTIONS}
           placeholder="All Statuses"
           className="sm:w-44"
         />
         <FilterSelect
           value={datePreset}
-          onChange={(v) => { setDatePreset(v); setPage(1); }}
+          onChange={(v) => updateParams({ datePreset: v, page: "1" })}
           options={DATE_PRESET_OPTIONS}
           placeholder="All Time"
           className="sm:w-40"
@@ -356,7 +376,7 @@ export default function KycQueuePage() {
                 totalPages={pagination?.totalPages ?? 1}
                 total={pagination?.total ?? 0}
                 limit={15}
-                onPageChange={setPage}
+                onPageChange={(n) => updateParams({ page: String(n) })}
               />
             </div>
           )}
@@ -404,5 +424,13 @@ export default function KycQueuePage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function KycQueuePage() {
+  return (
+    <Suspense fallback={null}>
+      <KycQueuePageContent />
+    </Suspense>
   );
 }

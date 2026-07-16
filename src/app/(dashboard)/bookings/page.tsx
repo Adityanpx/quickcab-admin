@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { Suspense, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { BookOpen, CheckCircle, Clock, XCircle } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useBookings } from "@/lib/hooks/useBookings";
 import { bookingsApi } from "@/lib/api/bookings";
 import { BookingFilters } from "@/components/bookings/BookingFilters";
@@ -23,15 +24,32 @@ const sectionVariants: Variants = {
   }),
 };
 
-export default function BookingsPage() {
+function BookingsPageContent() {
   const qc = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [vehicleType, setVehicleType] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  // ── URL-driven filter state (survives back-navigation) ───────────────────
+  const page        = Number(searchParams.get("page") ?? "1");
+  const search      = searchParams.get("search") ?? "";
+  const status      = searchParams.get("status") ?? "";
+  const vehicleType = searchParams.get("vehicleType") ?? "";
+  const dateFrom    = searchParams.get("dateFrom") ?? "";
+  const dateTo      = searchParams.get("dateTo") ?? "";
+
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
+
+  const updateParams = useCallback((updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParamsRef.current.toString());
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+      else params.delete(k);
+    });
+    router.replace(`?${params.toString()}`);
+  }, [router]);
+
+  // ── UI-only state (correctly local) ──────────────────────────────────────
   const [isExporting, setIsExporting] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -57,9 +75,9 @@ export default function BookingsPage() {
   };
 
   const handleSearch = useCallback((v: string) => {
-    setSearch(v);
-    setPage(1);
-  }, []);
+    if (v === (searchParamsRef.current.get("search") ?? "")) return;
+    updateParams({ search: v, page: "1" });
+  }, [updateParams]);
 
   const handleCancelConfirm = async (reason: string) => {
     if (!cancelTarget) return;
@@ -181,13 +199,13 @@ export default function BookingsPage() {
           search={search}
           onSearchChange={handleSearch}
           status={status}
-          onStatusChange={(v) => { setStatus(v); setPage(1); }}
+          onStatusChange={(v) => updateParams({ status: v, page: "1" })}
           vehicleType={vehicleType}
-          onVehicleTypeChange={(v) => { setVehicleType(v); setPage(1); }}
+          onVehicleTypeChange={(v) => updateParams({ vehicleType: v, page: "1" })}
           dateFrom={dateFrom}
-          onDateFromChange={(v) => { setDateFrom(v); setPage(1); }}
+          onDateFromChange={(v) => updateParams({ dateFrom: v, page: "1" })}
           dateTo={dateTo}
-          onDateToChange={(v) => { setDateTo(v); setPage(1); }}
+          onDateToChange={(v) => updateParams({ dateTo: v, page: "1" })}
           onExport={handleExport}
           isExporting={isExporting}
         />
@@ -202,7 +220,7 @@ export default function BookingsPage() {
           totalPages={pagination?.totalPages ?? 1}
           total={pagination?.total ?? 0}
           limit={15}
-          onPageChange={setPage}
+          onPageChange={(n) => updateParams({ page: String(n) })}
           onCancel={setCancelTarget}
         />
       </motion.div>
@@ -216,5 +234,13 @@ export default function BookingsPage() {
         loading={cancelling}
       />
     </div>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <BookingsPageContent />
+    </Suspense>
   );
 }
