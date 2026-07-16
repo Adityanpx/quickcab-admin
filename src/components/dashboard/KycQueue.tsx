@@ -57,6 +57,7 @@ export function KycQueue() {
                 userName: string;
                 mobile: string;
                 subType?: string;
+                role?: string;
                 submittedAt: string;
               }) => (
                 <tr key={item.userId}>
@@ -74,9 +75,13 @@ export function KycQueue() {
                     </div>
                   </td>
                   <td>
-                    <Badge variant={item.subType === "VEHICLE_OWNER" ? "partner" : "vendor"}>
-                      {item.subType === "VEHICLE_OWNER" ? "Owner" : "Vendor"}
-                    </Badge>
+                    {item.role === "SERVICE_PROVIDER" ? (
+                      <Badge variant="purple">Service Provider</Badge>
+                    ) : (
+                      <Badge variant={item.subType === "VEHICLE_OWNER" ? "partner" : "vendor"}>
+                        {item.subType === "VEHICLE_OWNER" ? "Owner" : "Vendor"}
+                      </Badge>
+                    )}
                   </td>
                   <td>
                     <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
@@ -84,7 +89,13 @@ export function KycQueue() {
                     </span>
                   </td>
                   <td>
-                    <Link href={`/partners/${item.userId}`}>
+                    <Link
+                      href={
+                        item.role === "SERVICE_PROVIDER"
+                          ? `/providers/${item.userId}`
+                          : `/partners/${item.userId}`
+                      }
+                    >
                       <Button variant="outline" size="xs">
                         Review
                       </Button>

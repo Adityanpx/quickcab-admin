@@ -47,6 +47,7 @@ interface KycQueueItem {
   userName: string;
   mobile: string;
   subType?: string;
+  role?: string;
   kycStatus: string;
   aadhaarNumber?: string;
   vehicleNumber?: string | null;
@@ -119,6 +120,12 @@ export default function KycQueuePage() {
 
   const items: KycQueueItem[] = data?.items ?? [];
   const pagination = data?.pagination;
+
+  // Service Providers live under /providers/:id; everyone else is a partner.
+  const detailHref = (item: KycQueueItem) =>
+    item.role === "SERVICE_PROVIDER"
+      ? `/providers/${item.userId}`
+      : `/partners/${item.userId}`;
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -235,7 +242,7 @@ export default function KycQueuePage() {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03, duration: 0.25 }}
-                      onClick={() => router.push(`/partners/${item.userId}`)}
+                      onClick={() => router.push(detailHref(item))}
                       className="cursor-pointer hover:bg-light-surface-2 dark:hover:bg-dark-surface transition-colors"
                     >
                       {/* Partner */}
@@ -244,7 +251,7 @@ export default function KycQueuePage() {
                           <Avatar name={item.userName} size="sm" />
                           <div>
                             <Link
-                              href={`/partners/${item.userId}`}
+                              href={detailHref(item)}
                               className="text-[13px] font-medium text-light-text dark:text-dark-text hover:text-brand-purple transition-colors"
                             >
                               {item.userName}
@@ -263,7 +270,9 @@ export default function KycQueuePage() {
 
                       {/* Sub-type */}
                       <td>
-                        {item.subType ? (
+                        {item.role === "SERVICE_PROVIDER" ? (
+                          <Badge variant="purple">Service Provider</Badge>
+                        ) : item.subType ? (
                           <Badge variant={item.subType === "VEHICLE_OWNER" ? "partner" : "vendor"}>
                             {item.subType === "VEHICLE_OWNER" ? "Owner" : "Vendor"}
                           </Badge>

@@ -1,0 +1,330 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  Eye,
+  MoreVertical,
+  ShieldOff,
+  ShieldBan,
+  ShieldCheck,
+} from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Avatar } from "@/components/ui/Avatar";
+import { StatusBadge, Badge } from "@/components/ui/Badge";
+import { TableRowSkeleton } from "@/components/ui/SkeletonLoader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Pagination } from "@/components/ui/Pagination";
+import { formatDate, cn } from "@/lib/utils";
+import type { Provider } from "@/types/provider";
+import { CATEGORY_LABELS } from "@/types/provider";
+
+interface ProviderTableProps {
+  providers: Provider[];
+  isLoading: boolean;
+  page: number;
+  totalPages: number;
+  total: number;
+  limit: number;
+  onPageChange: (page: number) => void;
+  onSuspend: (provider: Provider) => void;
+  onBlock: (provider: Provider) => void;
+  onUnsuspend: (provider: Provider) => void;
+  onUnblock: (provider: Provider) => void;
+}
+
+// ─── Row Action Menu ──────────────────────────────────────
+function ActionMenu({
+  provider,
+  onSuspend,
+  onBlock,
+  onUnsuspend,
+  onUnblock,
+}: {
+  provider: Provider;
+  onSuspend: (p: Provider) => void;
+  onBlock: (p: Provider) => void;
+  onUnsuspend: (p: Provider) => void;
+  onUnblock: (p: Provider) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const isSuspended = provider.status === "SUSPENDED";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-7 h-7 rounded-lg flex items-center justify-center text-light-text-3 dark:text-dark-text-3 hover:bg-light-surface-2 dark:hover:bg-dark-surface hover:text-light-text dark:hover:text-dark-text transition-colors"
+      >
+        <MoreVertical size={14} />
+      </button>
+
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, y: -6 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.15 }}
+          className={cn(
+            "absolute right-0 top-8 w-48 z-20 rounded-xl overflow-hidden",
+            "bg-white dark:bg-dark-surface",
+            "border border-light-border dark:border-dark-border",
+            "shadow-lg dark:shadow-black/30"
+          )}
+        >
+          <div className="p-1">
+            <Link
+              href={`/providers/${provider.id}`}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-light-text dark:text-dark-text hover:bg-light-surface-2 dark:hover:bg-dark-surface-2 transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <Eye size={14} className="text-light-text-3 dark:text-dark-text-3" />
+              View Details
+            </Link>
+
+            {provider.status === "BLOCKED" ? (
+              // BLOCKED providers — only option is Unblock
+              <button
+                onClick={() => { onUnblock(provider); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-brand-green hover:bg-brand-green-muted transition-colors"
+              >
+                <ShieldCheck size={14} />
+                Unblock
+              </button>
+            ) : (
+              <>
+                {isSuspended ? (
+                  <button
+                    onClick={() => { onUnsuspend(provider); setOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-brand-green hover:bg-brand-green-muted transition-colors"
+                  >
+                    <ShieldCheck size={14} />
+                    Unsuspend
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { onSuspend(provider); setOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-brand-orange hover:bg-brand-orange-muted transition-colors"
+                  >
+                    <ShieldOff size={14} />
+                    Suspend
+                  </button>
+                )}
+
+                <button
+                  onClick={() => { onBlock(provider); setOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-brand-red hover:bg-brand-red-muted transition-colors"
+                >
+                  <ShieldBan size={14} />
+                  Block Permanently
+                </button>
+              </>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Table ───────────────────────────────────────────
+export function ProviderTable({
+  providers,
+  isLoading,
+  page,
+  totalPages,
+  total,
+  limit,
+  onPageChange,
+  onSuspend,
+  onBlock,
+  onUnsuspend,
+  onUnblock,
+}: ProviderTableProps) {
+  const router = useRouter();
+
+  return (
+    <div className="card p-0 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="table-base">
+          <thead>
+            <tr>
+              <th className="pl-5">Provider</th>
+              <th>Category</th>
+              <th>Contact & Location</th>
+              <th>Business</th>
+              <th>Status</th>
+              <th>KYC</th>
+              <th>Wallet</th>
+              <th>Joined</th>
+              <th className="pr-5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <TableRowSkeleton key={i} cols={9} />
+              ))
+            ) : providers.length === 0 ? (
+              <tr>
+                <td colSpan={9}>
+                  <EmptyState
+                    title="No service providers found"
+                    description="Try adjusting your search or filters"
+                  />
+                </td>
+              </tr>
+            ) : (
+              providers.map((provider, i) => (
+                <motion.tr
+                  key={provider.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03, duration: 0.25 }}
+                  className="group cursor-pointer hover:bg-light-surface-2 dark:hover:bg-dark-surface transition-colors"
+                  onClick={() => router.push(`/providers/${provider.id}`)}
+                >
+                  {/* Provider name + mobile */}
+                  <td className="pl-5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={provider.name} size="sm" />
+                      <div className="min-w-0">
+                        <Link
+                          href={`/providers/${provider.id}`}
+                          className="text-[13px] font-medium text-light-text dark:text-dark-text hover:text-brand-purple transition-colors truncate block"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {provider.name}
+                        </Link>
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
+                          {provider.mobile}
+                        </p>
+                        {provider.displayId && (
+                          <p className="text-[10px] text-light-text-3 dark:text-dark-text-3 font-mono">
+                            {provider.displayId}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Category */}
+                  <td>
+                    {provider.providerProfile?.category ? (
+                      <Badge variant="purple">
+                        {CATEGORY_LABELS[provider.providerProfile.category]}
+                      </Badge>
+                    ) : (
+                      <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">—</span>
+                    )}
+                  </td>
+
+                  {/* Email + City */}
+                  <td>
+                    <div className="min-w-0">
+                      {provider.providerProfile?.email ? (
+                        <p className="text-[12px] text-light-text dark:text-dark-text truncate max-w-[160px]">
+                          {provider.providerProfile.email}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 italic">
+                          No email
+                        </p>
+                      )}
+                      {provider.providerProfile?.city ? (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
+                          📍 {provider.providerProfile.city}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5 italic">
+                          No city
+                        </p>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Business name */}
+                  <td>
+                    {(provider.providerProfile?.businessName ?? provider.kycRecord?.businessName) ? (
+                      <span className="text-[12px] text-light-text dark:text-dark-text">
+                        {provider.providerProfile?.businessName ?? provider.kycRecord?.businessName}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-light-text-3 dark:text-dark-text-3">—</span>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td>
+                    <StatusBadge status={provider.status} />
+                  </td>
+
+                  {/* KYC status */}
+                  <td>
+                    {provider.kycRecord ? (
+                      <StatusBadge status={provider.kycRecord.status} />
+                    ) : (
+                      <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
+                        Not submitted
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Wallet balance */}
+                  <td>
+                    <span className="text-[13px] font-medium text-light-text dark:text-dark-text">
+                      ₹{provider.walletBalance.toLocaleString("en-IN")}
+                    </span>
+                  </td>
+
+                  {/* Joined date */}
+                  <td>
+                    <span className="text-[12px] text-light-text-2 dark:text-dark-text-2">
+                      {formatDate(provider.createdAt)}
+                    </span>
+                  </td>
+
+                  {/* Actions — stopPropagation so the row click doesn't fire */}
+                  <td className="pr-5 text-right" onClick={(e) => e.stopPropagation()}>
+                    <ActionMenu
+                      provider={provider}
+                      onSuspend={onSuspend}
+                      onBlock={onBlock}
+                      onUnsuspend={onUnsuspend}
+                      onUnblock={onUnblock}
+                    />
+                  </td>
+                </motion.tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {!isLoading && providers.length > 0 && (
+        <div className="px-5 py-4 border-t border-light-border dark:border-dark-border">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            limit={limit}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

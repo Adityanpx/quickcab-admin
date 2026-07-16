@@ -113,6 +113,9 @@ export const partnersApi = {
         userName: kycRecord.user?.name,
         mobile: kycRecord.user?.mobile,
         subType: kycRecord.user?.partnerProfile?.subType,
+        // PARTNER | SERVICE_PROVIDER — lets the queue route each row to the
+        // right detail page. Partner rows are unaffected.
+        role: kycRecord.user?.role,
         kycStatus: kycRecord.status,
         submittedAt: kycRecord.submittedAt,
         aadhaarNumber: kycRecord.aadhaarNumber,
@@ -183,6 +186,8 @@ export const partnersApi = {
       aadhaarBack:    "kyc-aadhaar-back",
       drivingLicence: "kyc-driving-licence",
       selfie:         "kyc-selfie",
+      // Service Provider address proof — partners never send this fieldKey
+      businessDoc:    "kyc-business-doc",
     };
     const category = categoryMap[fieldKey];
     if (!category) throw new Error(`Unknown fieldKey: ${fieldKey}`);

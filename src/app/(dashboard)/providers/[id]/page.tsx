@@ -1,0 +1,969 @@
+"use client";
+
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
+import {
+  ArrowLeft,
+  Phone,
+  Mail,
+  MapPin,
+  Star,
+  Wallet,
+  Calendar,
+  ShieldOff,
+  ShieldBan,
+  ShieldCheck,
+  Copy,
+  RefreshCw,
+} from "lucide-react";
+import {
+  useProvider,
+  useSuspendProvider,
+  useDeleteProvider,
+  useProviderServiceRequests,
+  useApproveKyc,
+  useRejectKyc,
+  useReviewDocument,
+  useAdminUploadKycDoc,
+} from "@/lib/hooks/useProviders";
+import { providersApi } from "@/lib/api/providers";
+import type { ProviderKycRejectPayload } from "@/lib/api/providers";
+import { KycDocViewer, KycActionBar } from "@/components/partners/KycDocViewer";
+import { SuspendModal } from "@/components/partners/SuspendModal";
+import { BlockModal } from "@/components/partners/BlockModal";
+import { DeleteProviderModal } from "@/components/providers/DeleteProviderModal";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge, StatusBadge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { DashboardSkeleton, TableRowSkeleton } from "@/components/ui/SkeletonLoader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Pagination } from "@/components/ui/Pagination";
+import { formatDate, formatRelative, formatCurrency, cn } from "@/lib/utils";
+import type { Partner, SuspendPartnerPayload } from "@/types/partner";
+import type { Provider } from "@/types/provider";
+import { CATEGORY_LABELS } from "@/types/provider";
+import toast from "react-hot-toast";
+import { useQueryClient } from "@tanstack/react-query";
+
+type Tab = "overview" | "kyc" | "requests" | "wallet";
+
+const TAB_LIST: { key: Tab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "kyc", label: "KYC Documents" },
+  { key: "requests", label: "Service Requests" },
+  { key: "wallet", label: "Wallet History" },
+];
+
+const sectionVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: (i: number) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.07, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as any },
+  }),
+};
+
+// SuspendModal/BlockModal read only `.name` off this prop — see providers/page.tsx.
+const asPartnerProp = (p: Provider | null) => p as unknown as Partner | null;
+
+export default function ProviderDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const qc = useQueryClient();
+  const providerId = params.id as string;
+
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [showSuspend, setShowSuspend] = useState(false);
+  const [showBlock, setShowBlock] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [isUnsuspending, setIsUnsuspending] = useState(false);
+  const [isUnblocking, setIsUnblocking] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [rejectNoteOpen, setRejectNoteOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
+  const [requestPage, setRequestPage] = useState(1);
+
+  const { data: provider, isLoading, isError } = useProvider(providerId);
+  const suspendMutation = useSuspendProvider();
+  const approveKycMutation = useApproveKyc();
+  const rejectKycMutation = useRejectKyc();
+  const reviewDocMutation = useReviewDocument();
+  const uploadKycDocMutation = useAdminUploadKycDoc();
+  const deleteMutation = useDeleteProvider();
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [processingField, setProcessingField] = useState<string | null>(null);
+  const { data: requestsData, isLoading: requestsLoading } =
+    useProviderServiceRequests(provider?.id ?? "", requestPage);
+
+  // The shared KYC hooks invalidate ["partners"]/["kyc"] — this view is keyed
+  // under ["providers", id], so it needs its own refresh after every KYC action.
+  const refreshProvider = () =>
+    qc.invalidateQueries({ queryKey: ["providers", providerId] });
+
+  if (isLoading) return <DashboardSkeleton />;
+  if (isError || !provider) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <p className="text-light-text-2 dark:text-dark-text-2">Service Provider not found</p>
+        <Button variant="outline" size="sm" onClick={() => router.back()}>
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
+  const kycRecord = provider.kycRecord;
+  const resubmittedSet = new Set(kycRecord?.resubmittedDocuments ?? []);
+  const category = provider.providerProfile?.category ?? null;
+  const isDriver = category === "DRIVER";
+
+  // Drivers submit a Driving Licence; every other category submits a business
+  // document (address proof) instead. The backend enforces the same split.
+  const kycDocs = kycRecord
+    ? [
+        {
+          label: "Aadhaar Front",
+          fieldKey: "aadhaarFront",
+          url: kycRecord.aadhaarFrontUrl ?? null,
+          status: kycRecord.aadhaarFrontStatus ?? "PENDING",
+          rejectReason: kycRecord.aadhaarRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("aadhaarFront"),
+        },
+        {
+          label: "Aadhaar Back",
+          fieldKey: "aadhaarBack",
+          url: kycRecord.aadhaarBackUrl ?? null,
+          status: kycRecord.aadhaarBackStatus ?? "PENDING",
+          rejectReason: kycRecord.aadhaarRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("aadhaarBack"),
+        },
+        isDriver
+          ? {
+              label: "Driving Licence",
+              fieldKey: "drivingLicence",
+              url: kycRecord.drivingLicenceUrl ?? null,
+              status: kycRecord.drivingLicenceStatus ?? "PENDING",
+              rejectReason: kycRecord.drivingLicenceRejectReason ?? null,
+              isResubmitted: resubmittedSet.has("drivingLicence"),
+            }
+          : {
+              label: "Business Document (Address Proof)",
+              fieldKey: "businessDoc",
+              url: kycRecord.businessDocUrl ?? null,
+              status: kycRecord.businessDocStatus ?? "PENDING",
+              rejectReason: kycRecord.businessDocRejectReason ?? null,
+              isResubmitted: resubmittedSet.has("businessDoc"),
+            },
+        {
+          label: "Selfie",
+          fieldKey: "selfie",
+          url: kycRecord.selfieUrl ?? null,
+          status: kycRecord.selfieStatus ?? "PENDING",
+          rejectReason: kycRecord.selfieRejectReason ?? null,
+          isResubmitted: resubmittedSet.has("selfie"),
+        },
+      ]
+    : [];
+
+  const hasApprovedDoc = kycDocs.some((d) => d.url && d.status === "APPROVED");
+  const hasPendingDoc = kycDocs.some((d) => d.url && d.status === "PENDING");
+  const showMixedStatusHint = hasApprovedDoc && hasPendingDoc;
+
+  const handleSuspend = async (data: SuspendPartnerPayload) => {
+    await suspendMutation.mutateAsync({ id: provider.id, payload: data });
+    setShowSuspend(false);
+  };
+
+  const handleBlock = async (reason: string) => {
+    setIsBlocking(true);
+    try {
+      await providersApi.block(provider.id, reason);
+      qc.invalidateQueries({ queryKey: ["providers"] });
+      toast.success(`${provider.name} has been blocked permanently`);
+      setShowBlock(false);
+    } catch {
+      toast.error("Failed to block provider. Please try again.");
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
+  const handleUnsuspend = async () => {
+    setIsUnsuspending(true);
+    try {
+      await providersApi.unsuspend(provider.id);
+      qc.invalidateQueries({ queryKey: ["providers"] });
+      toast.success(`${provider.name} has been unsuspended successfully`);
+    } catch {
+      toast.error("Failed to unsuspend provider. Please try again.");
+    } finally {
+      setIsUnsuspending(false);
+    }
+  };
+
+  const handleUnblock = async () => {
+    setIsUnblocking(true);
+    try {
+      await providersApi.unblock(provider.id);
+      toast.success(`${provider.name} has been unblocked successfully`);
+      qc.invalidateQueries({ queryKey: ["providers"] });
+    } catch {
+      toast.error("Failed to unblock provider. Please try again.");
+    } finally {
+      setIsUnblocking(false);
+    }
+  };
+
+  const handleApproveKyc = async () => {
+    await approveKycMutation.mutateAsync({ userId: provider.id });
+    refreshProvider();
+  };
+
+  const handleRejectKyc = async () => {
+    if (!rejectNote.trim()) return;
+    const kyc = provider.kycRecord;
+    const payload: ProviderKycRejectPayload = {
+      adminNote: rejectNote,
+      aadhaarFrontStatus: "REJECTED",
+      aadhaarFrontRejectReason: rejectNote,
+      aadhaarBackStatus: "REJECTED",
+      aadhaarBackRejectReason: rejectNote,
+      selfieStatus: "REJECTED",
+      selfieRejectReason: rejectNote,
+      ...(isDriver
+        ? {
+            drivingLicenceStatus: kyc?.drivingLicenceUrl ? "REJECTED" : undefined,
+            drivingLicenceRejectReason: kyc?.drivingLicenceUrl ? rejectNote : undefined,
+          }
+        : {
+            businessDocStatus: kyc?.businessDocUrl ? "REJECTED" : undefined,
+            businessDocRejectReason: kyc?.businessDocUrl ? rejectNote : undefined,
+          }),
+    };
+    await rejectKycMutation.mutateAsync({ userId: provider.id, payload });
+    refreshProvider();
+    setRejectNoteOpen(false);
+    setRejectNote("");
+  };
+
+  const handleApproveDoc = async (fieldKey: string) => {
+    setProcessingField(fieldKey);
+    try {
+      await reviewDocMutation.mutateAsync({
+        userId: provider.id,
+        document: fieldKey,
+        status: "APPROVED",
+      });
+
+      // Fetch fresh data to check if all existing docs are now APPROVED
+      const freshProvider = await qc.fetchQuery({
+        queryKey: ["providers", providerId],
+        queryFn: () => providersApi.getById(providerId),
+        staleTime: 0,
+      });
+      const freshKyc = freshProvider?.kycRecord;
+      if (!freshKyc) return;
+
+      const isDriverFresh = freshProvider.providerProfile?.category === "DRIVER";
+      const thirdDocUrl = isDriverFresh ? freshKyc.drivingLicenceUrl : freshKyc.businessDocUrl;
+      const thirdDocStatus = isDriverFresh ? freshKyc.drivingLicenceStatus : freshKyc.businessDocStatus;
+
+      const allApproved =
+        freshKyc.aadhaarFrontStatus === "APPROVED" &&
+        freshKyc.aadhaarBackStatus === "APPROVED" &&
+        freshKyc.selfieStatus === "APPROVED" &&
+        (!thirdDocUrl || thirdDocStatus === "APPROVED");
+
+      const anyRejected =
+        freshKyc.aadhaarFrontStatus === "REJECTED" ||
+        freshKyc.aadhaarBackStatus === "REJECTED" ||
+        freshKyc.selfieStatus === "REJECTED" ||
+        (!!thirdDocUrl && thirdDocStatus === "REJECTED");
+
+      if (allApproved && !anyRejected) {
+        await approveKycMutation.mutateAsync({
+          userId: provider.id,
+          note: "All documents verified",
+        });
+        refreshProvider();
+      }
+    } finally {
+      setProcessingField(null);
+    }
+  };
+
+  const handleRejectDoc = async (fieldKey: string, reason: string) => {
+    setProcessingField(fieldKey);
+    try {
+      await reviewDocMutation.mutateAsync({
+        userId: provider.id,
+        document: fieldKey,
+        status: "REJECTED",
+        rejectReason: reason,
+      });
+
+      // Preserve existing APPROVED/REJECTED statuses, override the just-rejected
+      // doc, omit PENDING docs (undefined = no change)
+      const kyc = provider.kycRecord!;
+
+      const resolveStatus = (
+        key: string,
+        current: "PENDING" | "APPROVED" | "REJECTED"
+      ): "APPROVED" | "REJECTED" | undefined => {
+        if (key === fieldKey) return "REJECTED";
+        if (current === "APPROVED" || current === "REJECTED") return current;
+        return undefined;
+      };
+
+      const resolveReason = (
+        key: string,
+        existingReason: string | null
+      ): string | undefined => {
+        if (key === fieldKey) return reason;
+        return existingReason ?? undefined;
+      };
+
+      const payload: ProviderKycRejectPayload = {
+        adminNote: `Document rejected: ${fieldKey}`,
+        aadhaarFrontStatus: resolveStatus("aadhaarFront", kyc.aadhaarFrontStatus),
+        aadhaarFrontRejectReason: resolveReason("aadhaarFront", kyc.aadhaarRejectReason),
+        aadhaarBackStatus: resolveStatus("aadhaarBack", kyc.aadhaarBackStatus),
+        aadhaarBackRejectReason: resolveReason("aadhaarBack", kyc.aadhaarRejectReason),
+        selfieStatus: resolveStatus("selfie", kyc.selfieStatus),
+        selfieRejectReason: resolveReason("selfie", kyc.selfieRejectReason),
+        ...(isDriver
+          ? kyc.drivingLicenceUrl && {
+              drivingLicenceStatus: resolveStatus("drivingLicence", kyc.drivingLicenceStatus),
+              drivingLicenceRejectReason: resolveReason("drivingLicence", kyc.drivingLicenceRejectReason),
+            }
+          : kyc.businessDocUrl && {
+              businessDocStatus: resolveStatus("businessDoc", kyc.businessDocStatus ?? "PENDING"),
+              businessDocRejectReason: resolveReason("businessDoc", kyc.businessDocRejectReason ?? null),
+            }),
+      };
+
+      await rejectKycMutation.mutateAsync({ userId: provider.id, payload });
+      refreshProvider();
+    } finally {
+      setProcessingField(null);
+    }
+  };
+
+  const handleUploadDoc = async (fieldKey: string, file: File) => {
+    setUploadingField(fieldKey);
+    try {
+      await uploadKycDocMutation.mutateAsync({
+        userId: provider.id,
+        fieldKey,
+        file,
+      });
+      refreshProvider();
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    setIsDeletingUser(true);
+    try {
+      await deleteMutation.mutateAsync(provider.id);
+      setShowDelete(false);
+      router.push("/providers");
+    } catch {
+      // error toast handled by the mutation's onError
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied`);
+  };
+
+  const isSuspended = provider.status === "SUSPENDED";
+  const isBlocked = provider.status === "BLOCKED";
+  const profileEmail = provider.providerProfile?.email ?? provider.email ?? null;
+  const subServices = provider.providerProfile?.subServices ?? [];
+
+  return (
+    <div className="space-y-6 max-w-[1400px]">
+      {/* ── Back + Actions header ───────────────────── */}
+      <motion.div
+        custom={0}
+        variants={sectionVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex items-center justify-between"
+      >
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-sm text-light-text-2 dark:text-dark-text-2 hover:text-light-text dark:hover:text-dark-text transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Back to Service Providers
+        </button>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2">
+          {isBlocked ? (
+            <Button
+              variant="success"
+              size="sm"
+              icon={isUnblocking ? undefined : <ShieldCheck size={14} />}
+              onClick={handleUnblock}
+              loading={isUnblocking}
+            >
+              {isUnblocking ? "Unblocking..." : "Unblock"}
+            </Button>
+          ) : (
+            <>
+              {isSuspended ? (
+                <Button
+                  variant="success"
+                  size="sm"
+                  icon={isUnsuspending ? undefined : <ShieldCheck size={14} />}
+                  onClick={handleUnsuspend}
+                  loading={isUnsuspending}
+                >
+                  {isUnsuspending ? "Unsuspending..." : "Unsuspend"}
+                </Button>
+              ) : (
+                <button
+                  onClick={() => setShowSuspend(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-orange-muted text-brand-orange hover:bg-brand-orange/20 transition-colors"
+                >
+                  <ShieldOff size={16} />
+                  Suspend
+                </button>
+              )}
+              <button
+                onClick={() => setShowBlock(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-red-muted text-brand-red hover:bg-brand-red/20 transition-colors"
+              >
+                <ShieldBan size={16} />
+                Block
+              </button>
+            </>
+          )}
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-light-border dark:bg-dark-border" />
+
+          {/* Delete user — always visible regardless of status */}
+          <Button
+            variant="danger"
+            size="sm"
+            className="!bg-brand-red !text-white hover:!bg-red-700"
+            onClick={() => setShowDelete(true)}
+          >
+            Delete User
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* ── Profile Card ─────────────────────────────── */}
+      <motion.div
+        custom={1}
+        variants={sectionVariants}
+        initial="hidden"
+        animate="visible"
+        className="card"
+      >
+        <div className="flex flex-col sm:flex-row items-start gap-5">
+          <Avatar name={provider.name} size="lg" />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <h2 className="text-xl font-bold text-light-text dark:text-dark-text">
+                {provider.name}
+              </h2>
+              <StatusBadge status={provider.status} />
+              {category && (
+                <Badge variant="purple">{CATEGORY_LABELS[category]}</Badge>
+              )}
+              {provider.providerProfile?.isOnline && (
+                <Badge variant="green" dot pulse>Online</Badge>
+              )}
+            </div>
+
+            {/* Contact details */}
+            <div className="flex flex-wrap gap-4 mt-2">
+              <button
+                onClick={() => copyToClipboard(provider.mobile, "Mobile")}
+                className="flex items-center gap-1.5 text-[13px] text-light-text-2 dark:text-dark-text-2 hover:text-brand-purple transition-colors group"
+              >
+                <Phone size={13} />
+                {provider.mobile}
+                <Copy size={11} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+              </button>
+              {profileEmail && (
+                <button
+                  onClick={() => copyToClipboard(profileEmail, "Email")}
+                  className="flex items-center gap-1.5 text-[13px] text-light-text-2 dark:text-dark-text-2 hover:text-brand-purple transition-colors group"
+                >
+                  <Mail size={13} />
+                  {profileEmail}
+                  <Copy size={11} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+                </button>
+              )}
+              {provider.providerProfile?.city && (
+                <span className="flex items-center gap-1.5 text-[13px] text-light-text-2 dark:text-dark-text-2">
+                  <MapPin size={13} />
+                  {provider.providerProfile.city}
+                  {provider.providerProfile.state ? `, ${provider.providerProfile.state}` : ""}
+                </span>
+              )}
+            </div>
+
+            {/* Meta row */}
+            <div className="flex flex-wrap gap-4 mt-3">
+              <span className="flex items-center gap-1.5 text-[12px] text-light-text-3 dark:text-dark-text-3">
+                <Calendar size={12} />
+                Joined {formatDate(provider.createdAt)}
+              </span>
+              {provider.lastLoginAt && (
+                <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">
+                  Last active {formatRelative(provider.lastLoginAt)}
+                </span>
+              )}
+              <span className="flex items-center gap-1 text-[12px] text-light-text-3 dark:text-dark-text-3">
+                Referral:{" "}
+                <button
+                  onClick={() => copyToClipboard(provider.referralCode, "Referral code")}
+                  className="font-mono font-medium text-brand-purple hover:underline"
+                >
+                  {provider.referralCode}
+                </button>
+              </span>
+            </div>
+          </div>
+
+          {/* Quick stats */}
+          <div className="flex gap-4 shrink-0">
+            <div className="text-center">
+              <p className="text-xl font-bold text-light-text dark:text-dark-text">
+                {provider.providerProfile?.rating?.toFixed(1) ?? "—"}
+              </p>
+              <div className="flex items-center gap-1 justify-center">
+                <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                <span className="text-[11px] text-light-text-3 dark:text-dark-text-3">
+                  ({provider.providerProfile?.totalRatings ?? 0})
+                </span>
+              </div>
+              <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">Rating</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-light-text dark:text-dark-text">
+                {formatCurrency(provider.walletBalance)}
+              </p>
+              <div className="flex items-center gap-1 justify-center">
+                <Wallet size={12} className="text-brand-purple" />
+              </div>
+              <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">Wallet</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── Tabs ─────────────────────────────────────── */}
+      <motion.div custom={2} variants={sectionVariants} initial="hidden" animate="visible">
+        {/* Tab bar */}
+        <div className="flex items-center gap-1 border-b border-light-border dark:border-dark-border mb-5">
+          {TAB_LIST.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                "relative px-4 py-2.5 text-sm font-medium transition-colors duration-150",
+                activeTab === key
+                  ? "text-brand-purple"
+                  : "text-light-text-2 dark:text-dark-text-2 hover:text-light-text dark:hover:text-dark-text"
+              )}
+            >
+              {label}
+              {activeTab === key && (
+                <motion.div
+                  layoutId="tabIndicator"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-purple rounded-full"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          {/* ── Overview Tab ──────────────────────────── */}
+          {activeTab === "overview" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Subscription status */}
+              <div className="card">
+                <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text mb-4">
+                  Subscription
+                </h3>
+                {provider.subscription ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[13px]">
+                      <span className="text-light-text-2 dark:text-dark-text-2">Plan</span>
+                      <span className="font-medium text-light-text dark:text-dark-text">
+                        {provider.subscription.plan.name}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[13px]">
+                      <span className="text-light-text-2 dark:text-dark-text-2">Status</span>
+                      <StatusBadge status={provider.subscription.status} />
+                    </div>
+                    <div className="flex justify-between text-[13px]">
+                      <span className="text-light-text-2 dark:text-dark-text-2">Expires</span>
+                      <span className="text-light-text dark:text-dark-text">
+                        {formatDate(provider.subscription.endDate)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-light-text-3 dark:text-dark-text-3">
+                    No active subscription
+                  </p>
+                )}
+              </div>
+
+              {/* KYC status summary */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text">
+                    KYC Status
+                  </h3>
+                  {kycRecord && <StatusBadge status={kycRecord.status} />}
+                </div>
+                {kycRecord ? (
+                  <div className="space-y-2">
+                    {kycRecord.aadhaarNumber && (
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-light-text-2 dark:text-dark-text-2">Aadhaar</span>
+                        <span className="font-mono text-light-text dark:text-dark-text">
+                          {kycRecord.aadhaarNumber}
+                        </span>
+                      </div>
+                    )}
+                    {kycRecord.businessName && (
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-light-text-2 dark:text-dark-text-2">Business</span>
+                        <span className="text-light-text dark:text-dark-text">
+                          {kycRecord.businessName}
+                        </span>
+                      </div>
+                    )}
+                    {kycRecord.submittedAt && (
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-light-text-2 dark:text-dark-text-2">Submitted</span>
+                        <span className="text-light-text dark:text-dark-text">
+                          {formatDate(kycRecord.submittedAt)}
+                        </span>
+                      </div>
+                    )}
+                    {kycRecord.adminNote && (
+                      <div className="pt-2 mt-2 border-t border-light-border dark:border-dark-border">
+                        <p className="text-[12px] text-light-text-2 dark:text-dark-text-2">
+                          Admin note:
+                        </p>
+                        <p className="text-[13px] text-light-text dark:text-dark-text mt-1">
+                          {kycRecord.adminNote}
+                        </p>
+                      </div>
+                    )}
+                    <div className="pt-3">
+                      <KycActionBar
+                        kycStatus={kycRecord.status}
+                        onApprove={handleApproveKyc}
+                        onReject={() => setRejectNoteOpen(true)}
+                        loading={approveKycMutation.isPending || rejectKycMutation.isPending}
+                        approving={approveKycMutation.isPending}
+                        rejecting={rejectKycMutation.isPending}
+                      />
+                      {showMixedStatusHint && kycRecord.status === "PENDING" && (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1.5">
+                          Review remaining documents or finalize decision above
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-light-text-3 dark:text-dark-text-3">
+                    No KYC record found
+                  </p>
+                )}
+              </div>
+
+              {/* Sub-services */}
+              {subServices.length > 0 && (
+                <div className="card lg:col-span-2">
+                  <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text mb-3">
+                    Services Offered
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {subServices.map((service) => (
+                      <span
+                        key={service}
+                        className="px-3 py-1.5 rounded-xl text-[12px] font-medium bg-brand-purple-muted dark:bg-brand-purple-muted-dark text-brand-purple"
+                      >
+                        {service}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── KYC Tab ───────────────────────────────── */}
+          {activeTab === "kyc" && (
+            <div className="space-y-4">
+              {kycRecord ? (
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[13px] text-light-text-2 dark:text-dark-text-2">
+                        Review all uploaded documents below
+                      </p>
+                      {showMixedStatusHint && kycRecord.status === "PENDING" && (
+                        <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
+                          Review remaining documents or finalize decision above
+                        </p>
+                      )}
+                    </div>
+                    <KycActionBar
+                      kycStatus={kycRecord.status}
+                      onApprove={handleApproveKyc}
+                      onReject={() => setRejectNoteOpen(true)}
+                      loading={approveKycMutation.isPending || rejectKycMutation.isPending}
+                      approving={approveKycMutation.isPending}
+                      rejecting={rejectKycMutation.isPending}
+                    />
+                  </div>
+
+                  {/* Resubmission notice */}
+                  {(kycRecord.resubmittedDocuments?.length ?? 0) > 0 && (
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-brand-purple-muted dark:bg-brand-purple-muted-dark border border-brand-purple/20">
+                      <RefreshCw size={16} className="text-brand-purple mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[13px] font-semibold text-brand-purple">
+                          Provider resubmitted documents
+                        </p>
+                        <p className="text-[12px] text-light-text-2 dark:text-dark-text-2 mt-0.5">
+                          Re-uploaded:{" "}
+                          {kycRecord.resubmittedDocuments!.join(", ")} · Resubmitted{" "}
+                          {kycRecord.resubmittedAt
+                            ? formatRelative(kycRecord.resubmittedAt)
+                            : "recently"}
+                        </p>
+                        <p className="text-[12px] text-light-text-3 dark:text-dark-text-3 mt-1">
+                          Previously approved documents do not need re-review
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <KycDocViewer
+                    docs={kycDocs}
+                    userId={provider.id}
+                    onApproveDoc={handleApproveDoc}
+                    onRejectDoc={handleRejectDoc}
+                    onUploadDoc={handleUploadDoc}
+                    uploadingField={uploadingField}
+                    loading={reviewDocMutation.isPending}
+                    processingField={processingField}
+                  />
+                </>
+              ) : (
+                <div className="card text-center py-12">
+                  <p className="text-light-text-2 dark:text-dark-text-2">
+                    No KYC documents submitted yet
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Service Requests Tab ──────────────────── */}
+          {activeTab === "requests" && (
+            <div className="card p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-light-border dark:border-dark-border">
+                <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text">
+                  Service Request History
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="table-base">
+                  <thead>
+                    <tr>
+                      <th className="pl-5">Service</th>
+                      <th>Requested By</th>
+                      <th>Date</th>
+                      <th className="pr-5">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requestsLoading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRowSkeleton key={i} cols={4} />
+                      ))
+                    ) : (requestsData?.items ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={4}>
+                          <EmptyState
+                            title="No service requests found"
+                            description="This provider has no service request history yet"
+                          />
+                        </td>
+                      </tr>
+                    ) : (
+                      (requestsData?.items ?? []).map((req) => (
+                        <tr key={req.id}>
+                          <td className="pl-5">
+                            <p className="text-[13px] font-medium text-light-text dark:text-dark-text">
+                              {req.serviceType}
+                            </p>
+                            <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
+                              {CATEGORY_LABELS[req.category] ?? req.category}
+                            </p>
+                          </td>
+                          <td>
+                            {req.driver ? (
+                              <>
+                                <p className="text-[12px] text-light-text dark:text-dark-text">
+                                  {req.driver.name}
+                                </p>
+                                <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
+                                  {req.driver.mobile}
+                                </p>
+                              </>
+                            ) : (
+                              <span className="text-[12px] text-light-text-3 dark:text-dark-text-3">—</span>
+                            )}
+                          </td>
+                          <td>
+                            <p className="text-[12px] text-light-text dark:text-dark-text">
+                              {formatDate(req.createdAt)}
+                            </p>
+                          </td>
+                          <td className="pr-5">
+                            <StatusBadge status={req.status} />
+                            {req.status === "DECLINED" && req.declineReason && (
+                              <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-0.5">
+                                {req.declineReason}
+                              </p>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {!requestsLoading && (requestsData?.items ?? []).length > 0 && (
+                <div className="px-5 py-4 border-t border-light-border dark:border-dark-border">
+                  <Pagination
+                    page={requestPage}
+                    totalPages={requestsData?.pagination?.totalPages ?? 1}
+                    total={requestsData?.pagination?.total ?? 0}
+                    limit={10}
+                    onPageChange={setRequestPage}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Wallet Tab ────────────────────────────── */}
+          {activeTab === "wallet" && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-[14px] text-light-text dark:text-dark-text">
+                  Wallet Balance
+                </h3>
+                <span className="text-xl font-bold text-brand-purple">
+                  {formatCurrency(provider.walletBalance)}
+                </span>
+              </div>
+              <p className="text-[13px] text-light-text-2 dark:text-dark-text-2 text-center py-6">
+                Transaction history will be displayed here.
+              </p>
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
+
+      {/* ── Modals ──────────────────────────────────── */}
+      <SuspendModal
+        isOpen={showSuspend}
+        onClose={() => setShowSuspend(false)}
+        onConfirm={handleSuspend}
+        partner={asPartnerProp(provider)}
+        loading={suspendMutation.isPending}
+      />
+
+      <BlockModal
+        isOpen={showBlock}
+        onClose={() => setShowBlock(false)}
+        onConfirm={handleBlock}
+        partner={asPartnerProp(provider)}
+        loading={isBlocking}
+      />
+
+      <DeleteProviderModal
+        isOpen={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDeleteUser}
+        provider={provider}
+        loading={isDeletingUser}
+      />
+
+      {/* KYC Reject Note Modal */}
+      <Modal
+        isOpen={rejectNoteOpen}
+        onClose={() => setRejectNoteOpen(false)}
+        title="Reject KYC — Add Note"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setRejectNoteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleRejectKyc}
+              loading={rejectKycMutation.isPending}
+              className="!bg-brand-red !text-white"
+            >
+              Reject KYC
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-[13px] text-light-text-2 dark:text-dark-text-2">
+            This note will be sent to the provider explaining why their KYC was rejected.
+          </p>
+          <textarea
+            rows={4}
+            value={rejectNote}
+            onChange={(e) => setRejectNote(e.target.value)}
+            placeholder="e.g. Aadhaar image is blurry, please re-upload..."
+            className="input-base resize-none"
+          />
+        </div>
+      </Modal>
+    </div>
+  );
+}

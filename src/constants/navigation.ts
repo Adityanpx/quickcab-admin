@@ -12,6 +12,7 @@ import {
   Ticket,
   Settings,
   Activity,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,6 +38,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Partners",
     href: "/partners",
     icon: Users,
+  },
+  {
+    label: "Service Providers",
+    href: "/providers",
+    icon: Wrench,
   },
   {
     label: "KYC Queue",
