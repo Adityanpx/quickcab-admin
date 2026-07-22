@@ -13,6 +13,7 @@ import {
   Settings,
   Activity,
   Wrench,
+  Share2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Wallet & Payouts",
     href: "/wallet",
     icon: Wallet,
+  },
+  {
+    label: "Referral Management",
+    href: "/referral-links",
+    icon: Share2,
   },
   {
     label: "Ratings",
