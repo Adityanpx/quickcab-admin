@@ -162,16 +162,34 @@ function PartnersPageContent() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const exportLimit = Math.max(pagination?.total ?? 0, 1000);
-      const allData = await partnersApi.getAll({
+      // The server hard-caps `limit` at 100 per request (see getPaginationParams),
+      // so a single call can never return more than 100 rows regardless of what
+      // we ask for. Paginate through every page and stitch results together.
+      const baseFilters = {
         search: search || undefined,
         status: (status as Partner["status"]) || undefined,
         subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
         city: city || undefined,
         ...getDateRange(datePreset),
-        limit: exportLimit,
-      });
-      const rows = allData.items.map((p) => [
+      };
+
+      const PAGE_SIZE = 100;
+      const SAFETY_MAX_PAGES = 200; // hard ceiling: 20,000 rows, avoids a runaway loop
+
+      const first = await partnersApi.getAll({ ...baseFilters, page: 1, limit: PAGE_SIZE });
+      let allItems = [...first.items];
+      const total = first.pagination?.total ?? allItems.length;
+      const totalPages = Math.min(
+        first.pagination?.totalPages ?? 1,
+        SAFETY_MAX_PAGES
+      );
+
+      for (let p = 2; p <= totalPages; p++) {
+        const next = await partnersApi.getAll({ ...baseFilters, page: p, limit: PAGE_SIZE });
+        allItems = allItems.concat(next.items);
+      }
+
+      const rows = allItems.map((p) => [
         p.name,
         p.mobile,
         p.email ?? "",
@@ -190,7 +208,12 @@ function PartnersPageContent() {
       a.download = `quickcab-partners-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(`CSV exported — ${allData.items.length} partner${allData.items.length === 1 ? "" : "s"}`);
+
+      if (allItems.length < total) {
+        toast.error(`Exported ${allItems.length} of ${total} — hit the safety page cap. Narrow your filters and export again for the rest.`);
+      } else {
+        toast.success(`CSV exported — ${allItems.length} partner${allItems.length === 1 ? "" : "s"}`);
+      }
     } catch {
       toast.error("Export failed");
     } finally {
