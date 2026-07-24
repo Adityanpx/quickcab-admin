@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, ZoomIn, ZoomOut, RotateCw, Download, FileX, CheckCircle, XCircle,
-  AlertCircle, RefreshCw, Upload, Loader2,
+  AlertCircle, RefreshCw, Upload, Loader2, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -115,7 +115,7 @@ function DocCard({
   processingField,
 }: {
   doc: DocItem;
-  onView: (url: string, label: string) => void;
+  onView: (fieldKey: string) => void;
   onApprove?: (fieldKey: string) => void;
   onReject?: (fieldKey: string) => void;
   onUpload?: (fieldKey: string, file: File) => void;
@@ -219,7 +219,7 @@ function DocCard({
       {/* Image area — click anywhere to open viewer */}
       <div
         className="group relative overflow-hidden cursor-pointer"
-        onClick={() => onView(doc.url!, doc.label)}
+        onClick={() => onView(doc.fieldKey)}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -358,6 +358,14 @@ function DocCard({
   );
 }
 
+const QUICK_REJECT_REASONS = [
+  "Image is blurry",
+  "Details don't match profile",
+  "Document expired",
+  "Wrong document uploaded",
+  "Image is cropped / incomplete",
+];
+
 // ─── Main KycDocViewer ────────────────────────────────────
 export function KycDocViewer({
   docs,
@@ -369,32 +377,139 @@ export function KycDocViewer({
   loading,
   processingField,
 }: KycDocViewerProps) {
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [lightboxLabel, setLightboxLabel] = useState("");
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
-  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useState({ x: 0, y: 0, panX: 0, panY: 0 })[0];
+  const [showRejectPanel, setShowRejectPanel] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
-  const openLightbox = (url: string, label: string) => {
-    setLightboxUrl(url);
-    setLightboxLabel(label);
+  // Only documents that actually have an uploaded image can be viewed/navigated.
+  const viewableDocs = docs.filter((d) => !!d.url);
+  const currentDoc = lightboxIndex !== null ? viewableDocs[lightboxIndex] : null;
+
+  const resetView = () => {
     setZoom(1);
     setRotation(0);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const openLightbox = (fieldKey: string) => {
+    const idx = viewableDocs.findIndex((d) => d.fieldKey === fieldKey);
+    if (idx === -1) return;
+    setLightboxIndex(idx);
+    resetView();
+    setShowRejectPanel(false);
+    setRejectReason("");
   };
 
   const closeLightbox = () => {
-    setLightboxUrl(null);
-    setZoom(1);
-    setRotation(0);
+    setLightboxIndex(null);
+    resetView();
+    setShowRejectPanel(false);
+    setRejectReason("");
+  };
+
+  const goTo = (idx: number) => {
+    if (idx < 0 || idx >= viewableDocs.length) return;
+    setLightboxIndex(idx);
+    resetView();
+    setShowRejectPanel(false);
+    setRejectReason("");
+  };
+
+  const goNext = () => {
+    if (lightboxIndex === null) return;
+    goTo(lightboxIndex + 1);
+  };
+
+  const goPrev = () => {
+    if (lightboxIndex === null) return;
+    goTo(lightboxIndex - 1);
+  };
+
+  const handleApproveCurrent = () => {
+    if (!currentDoc) return;
+    onApproveDoc?.(currentDoc.fieldKey);
+    // Optimistic advance — the parent tracks real in-flight state via processingField.
+    if (lightboxIndex !== null && lightboxIndex < viewableDocs.length - 1) {
+      goNext();
+    } else {
+      closeLightbox();
+    }
   };
 
   const handleRejectConfirm = () => {
-    if (!rejectTarget || !rejectReason.trim()) return;
-    onRejectDoc?.(rejectTarget, rejectReason.trim());
-    setRejectTarget(null);
+    if (!currentDoc || !rejectReason.trim()) return;
+    onRejectDoc?.(currentDoc.fieldKey, rejectReason.trim());
+    setShowRejectPanel(false);
     setRejectReason("");
+    if (lightboxIndex !== null && lightboxIndex < viewableDocs.length - 1) {
+      goNext();
+    } else {
+      closeLightbox();
+    }
   };
+
+  // Legacy modal path kept for the DocCard's own inline Reject button
+  // (grid view, outside the lightbox) — unchanged behavior.
+  const [cardRejectTarget, setCardRejectTarget] = useState<string | null>(null);
+  const [cardRejectReason, setCardRejectReason] = useState("");
+  const handleCardRejectConfirm = () => {
+    if (!cardRejectTarget || !cardRejectReason.trim()) return;
+    onRejectDoc?.(cardRejectTarget, cardRejectReason.trim());
+    setCardRejectTarget(null);
+    setCardRejectReason("");
+  };
+
+  // ── Drag-to-pan ─────────────────────────────────────────
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (zoom <= 1) return; // only pan when zoomed in
+    setIsDragging(true);
+    dragStartRef.x = e.clientX;
+    dragStartRef.y = e.clientY;
+    dragStartRef.panX = pan.x;
+    dragStartRef.panY = pan.y;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.x;
+    const dy = e.clientY - dragStartRef.y;
+    setPan({ x: dragStartRef.panX + dx, y: dragStartRef.panY + dy });
+  };
+
+  const handlePointerUp = () => setIsDragging(false);
+
+  // Reset pan whenever zoom returns to 100% so the image re-centers.
+  const applyZoom = (next: number) => {
+    const clamped = Math.min(5, Math.max(0.25, parseFloat(next.toFixed(2))));
+    setZoom(clamped);
+    if (clamped <= 1) setPan({ x: 0, y: 0 });
+  };
+
+  // ── Keyboard shortcuts ──────────────────────────────────
+  React.useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handler = (e: KeyboardEvent) => {
+      // Don't hijack keys while typing in the reject textarea.
+      if (showRejectPanel) {
+        if (e.key === "Escape") { setShowRejectPanel(false); setRejectReason(""); }
+        return;
+      }
+      if (e.key === "Escape") closeLightbox();
+      else if (e.key === "ArrowRight") goNext();
+      else if (e.key === "ArrowLeft") goPrev();
+      else if (e.key.toLowerCase() === "a" && currentDoc?.status !== "APPROVED") handleApproveCurrent();
+      else if (e.key.toLowerCase() === "r" && currentDoc?.status !== "REJECTED") setShowRejectPanel(true);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxIndex, showRejectPanel, currentDoc]);
 
   return (
     <>
@@ -409,8 +524,8 @@ export function KycDocViewer({
             onReject={
               onRejectDoc
                 ? (key) => {
-                    setRejectTarget(key);
-                    setRejectReason("");
+                    setCardRejectTarget(key);
+                    setCardRejectReason("");
                   }
                 : undefined
             }
@@ -422,17 +537,16 @@ export function KycDocViewer({
         ))}
       </div>
 
-      {/* Lightbox — zoom · rotate · mouse-wheel zoom */}
+      {/* Full-screen Lightbox — zoom · rotate · drag-to-pan · inline approve/reject · nav */}
       <AnimatePresence>
-        {lightboxUrl && (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center select-none">
-            {/* Backdrop */}
+        {currentDoc && lightboxIndex !== null && (
+          <div className="fixed inset-0 z-50 flex flex-col select-none bg-black">
+            {/* Backdrop (click empty toolbar area or Esc to close — image drag doesn't close) */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={closeLightbox}
-              className="absolute inset-0 bg-black/90"
+              className="absolute inset-0 bg-black"
             />
 
             {/* Toolbar */}
@@ -441,142 +555,229 @@ export function KycDocViewer({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="relative z-10 flex items-center gap-1.5 mb-4 px-3 py-2 rounded-2xl bg-white/10 backdrop-blur-sm"
+              className="relative z-10 flex items-center justify-between gap-2 px-4 py-3 bg-white/5 backdrop-blur-sm"
             >
-              <span className="text-white/80 text-[13px] font-medium pr-2 max-w-[160px] truncate">
-                {lightboxLabel}
-              </span>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-white text-[13px] font-semibold truncate max-w-[200px]">
+                  {currentDoc.label}
+                </span>
+                <span className="text-white/40 text-[12px] font-mono whitespace-nowrap">
+                  {lightboxIndex + 1} / {viewableDocs.length}
+                </span>
+                {currentDoc.status === "APPROVED" && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-brand-green whitespace-nowrap">
+                    <CheckCircle size={12} /> APPROVED
+                  </span>
+                )}
+                {currentDoc.status === "REJECTED" && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-brand-red whitespace-nowrap">
+                    <XCircle size={12} /> REJECTED
+                  </span>
+                )}
+              </div>
 
-              <div className="w-px h-5 bg-white/20 mx-1" />
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                {/* Prev / Next */}
+                <button
+                  onClick={goPrev}
+                  disabled={lightboxIndex === 0}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 disabled:opacity-30 disabled:hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+                  title="Previous (←)"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={goNext}
+                  disabled={lightboxIndex === viewableDocs.length - 1}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 disabled:opacity-30 disabled:hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+                  title="Next (→)"
+                >
+                  <ChevronRight size={16} />
+                </button>
 
-              {/* Zoom out */}
-              <button
-                onClick={() => setZoom(p => Math.max(0.25, parseFloat((p - 0.10).toFixed(2))))}
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
-                title="Zoom out"
-              >
-                <ZoomOut size={15} />
-              </button>
+                <div className="w-px h-5 bg-white/20 mx-1" />
 
-              {/* Zoom % */}
-              <span className="text-white/60 text-[12px] font-mono w-11 text-center">
-                {Math.round(zoom * 100)}%
-              </span>
+                <button
+                  onClick={() => applyZoom(zoom - 0.1)}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                  title="Zoom out"
+                >
+                  <ZoomOut size={15} />
+                </button>
+                <span className="text-white/60 text-[12px] font-mono w-11 text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  onClick={() => applyZoom(zoom + 0.1)}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                  title="Zoom in"
+                >
+                  <ZoomIn size={15} />
+                </button>
 
-              {/* Zoom in */}
-              <button
-                onClick={() => setZoom(p => Math.min(5, parseFloat((p + 0.10).toFixed(2))))}
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
-                title="Zoom in"
-              >
-                <ZoomIn size={15} />
-              </button>
+                <div className="w-px h-5 bg-white/20 mx-1" />
 
-              <div className="w-px h-5 bg-white/20 mx-1" />
+                <button
+                  onClick={() => setRotation((p) => (p + 90) % 360)}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                  title="Rotate 90°"
+                >
+                  <RotateCw size={15} />
+                </button>
+                <button
+                  onClick={resetView}
+                  className="px-3 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white/60 hover:text-white text-[11px] font-medium transition-colors"
+                >
+                  Reset
+                </button>
 
-              {/* Rotate 90° clockwise */}
-              <button
-                onClick={() => setRotation(p => (p + 90) % 360)}
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
-                title="Rotate 90°"
-              >
-                <RotateCw size={15} />
-              </button>
+                <div className="w-px h-5 bg-white/20 mx-1" />
 
-              {/* Reset */}
-              <button
-                onClick={() => { setZoom(1); setRotation(0); }}
-                className="px-3 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white/60 hover:text-white text-[11px] font-medium transition-colors"
-              >
-                Reset
-              </button>
-
-              <div className="w-px h-5 bg-white/20 mx-1" />
-
-              {/* Download */}
-              <a
-                href={lightboxUrl}
-                download
-                target="_blank"
-                rel="noreferrer"
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
-                title="Download"
-              >
-                <Download size={15} />
-              </a>
-
-              {/* Close */}
-              <button
-                onClick={closeLightbox}
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-500/50 flex items-center justify-center text-white transition-colors"
-                title="Close"
-              >
-                <X size={15} />
-              </button>
+                <a
+                  href={currentDoc.url!}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+                  title="Download"
+                >
+                  <Download size={15} />
+                </a>
+                <button
+                  onClick={closeLightbox}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-500/50 flex items-center justify-center text-white transition-colors"
+                  title="Close (Esc)"
+                >
+                  <X size={15} />
+                </button>
+              </div>
             </motion.div>
 
-            {/* Image viewport — overflow-auto so zoomed content is scrollable */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.92 }}
-              transition={{ duration: 0.2 }}
-              className="relative z-10 overflow-auto rounded-2xl"
-              style={{ width: "min(90vw, 820px)", height: "min(72vh, 620px)" }}
-              onWheel={(e) => {
-                const delta = e.deltaY < 0 ? 0.1 : -0.1;
-                setZoom(p => Math.min(5, Math.max(0.25, parseFloat((p + delta).toFixed(2)))));
-              }}
+            {/* Image viewport — full remaining screen, drag-to-pan when zoomed */}
+            <div
+              className="relative z-10 flex-1 overflow-hidden"
+              style={{ cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default" }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              onWheel={(e) => applyZoom(zoom + (e.deltaY < 0 ? 0.1 : -0.1))}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "100%",
-                  height: "100%",
-                }}
-              >
+              <div className="w-full h-full flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={lightboxUrl}
-                  alt={lightboxLabel}
+                  src={currentDoc.url!}
+                  alt={currentDoc.label}
                   draggable={false}
-                  className="select-none"
+                  className="select-none max-w-[92vw] max-h-[92vh] object-contain"
                   style={{
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    objectFit: "contain",
-                    transform: `rotate(${rotation}deg) scale(${zoom})`,
-                    transition: "transform 0.15s ease",
+                    transform: `translate(${pan.x}px, ${pan.y}px) rotate(${rotation}deg) scale(${zoom})`,
+                    transition: isDragging ? "none" : "transform 0.15s ease",
                     transformOrigin: "center center",
                   }}
                 />
               </div>
-            </motion.div>
+            </div>
 
-            {/* Hint */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative z-10 mt-3 text-white/25 text-[11px]"
-            >
-              Scroll to zoom · Click outside to close
-            </motion.p>
+            {/* Inline Approve / Reject bar (hidden once this doc is approved) */}
+            {!showRejectPanel && currentDoc.status !== "APPROVED" && (onApproveDoc || onRejectDoc) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="relative z-10 flex items-center justify-center gap-3 px-4 py-4 bg-white/5 backdrop-blur-sm"
+              >
+                {onRejectDoc && currentDoc.status !== "REJECTED" && (
+                  <button
+                    onClick={() => setShowRejectPanel(true)}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-brand-red bg-brand-red-muted border border-brand-red/20 hover:bg-red-100 transition-colors disabled:opacity-50"
+                  >
+                    <XCircle size={15} /> Reject <span className="text-white/30 font-normal">(R)</span>
+                  </button>
+                )}
+                {onApproveDoc && (
+                  <button
+                    onClick={handleApproveCurrent}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-brand-purple hover:bg-brand-purple-dark shadow-purple-glow transition-colors disabled:opacity-50"
+                  >
+                    <CheckCircle size={15} /> Approve <span className="text-white/50 font-normal">(A)</span>
+                  </button>
+                )}
+                <span className="text-white/25 text-[11px] ml-2 hidden sm:inline">
+                  ← → to navigate · Esc to close
+                </span>
+              </motion.div>
+            )}
+
+            {/* Inline Reject panel — quick-pick chips + editable reason, no separate modal */}
+            {showRejectPanel && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="relative z-10 px-4 py-4 bg-white/5 backdrop-blur-sm"
+              >
+                <div className="max-w-xl mx-auto">
+                  <p className="text-white/70 text-[12px] mb-2">
+                    Why is this document being rejected? Tap a reason or type your own.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {QUICK_REJECT_REASONS.map((reason) => (
+                      <button
+                        key={reason}
+                        onClick={() => setRejectReason(reason)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors",
+                          rejectReason === reason
+                            ? "bg-brand-red text-white border-brand-red"
+                            : "bg-white/10 text-white/70 border-white/15 hover:bg-white/20"
+                        )}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Or type a custom reason..."
+                    className="w-full rounded-xl bg-white/10 border border-white/15 text-white placeholder-white/30 text-[13px] px-3 py-2 resize-none focus:outline-none focus:border-brand-red/50"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button
+                      onClick={() => { setShowRejectPanel(false); setRejectReason(""); }}
+                      className="px-4 py-2 rounded-xl text-[13px] font-medium text-white/60 hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleRejectConfirm}
+                      disabled={!rejectReason.trim() || loading}
+                      className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white bg-brand-red hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      Confirm Reject
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
         )}
       </AnimatePresence>
 
-      {/* Per-document Reject Reason Modal */}
+      {/* Per-document Reject Reason Modal — grid-view Reject button (outside lightbox), unchanged */}
       <AnimatePresence>
-        {rejectTarget && (
+        {cardRejectTarget && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setRejectTarget(null)}
+              onClick={() => setCardRejectTarget(null)}
               className="absolute inset-0 bg-black/60"
             />
             <motion.div
@@ -594,22 +795,22 @@ export function KycDocViewer({
               </p>
               <textarea
                 rows={3}
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
+                value={cardRejectReason}
+                onChange={(e) => setCardRejectReason(e.target.value)}
                 placeholder="e.g. Image is blurry, please upload a clearer photo..."
                 className="input-base resize-none w-full mb-4"
                 autoFocus
               />
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => setRejectTarget(null)}
+                  onClick={() => setCardRejectTarget(null)}
                   className="px-4 py-2 rounded-xl text-[13px] font-medium text-light-text-2 dark:text-dark-text-2 hover:bg-light-surface-2 dark:hover:bg-dark-surface transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleRejectConfirm}
-                  disabled={!rejectReason.trim() || loading}
+                  onClick={handleCardRejectConfirm}
+                  disabled={!cardRejectReason.trim() || loading}
                   className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white bg-brand-red hover:bg-red-700 transition-colors disabled:opacity-50"
                 >
                   Reject Document
