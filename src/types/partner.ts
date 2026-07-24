@@ -113,9 +113,23 @@ export interface RoleUpgradeRequest {
   adminNote: string | null;
   createdAt: string;
   processedAt: string | null;
-  driver: {
+  user: {
     id: string;
     name: string;
     mobile: string;
+    status: string;
+    providerProfile: {
+      category: string;
+      rating: number;
+    } | null;
+    kycRecord: {
+      status: string;
+    } | null;
   };
+}
+
+export interface RoleUpgradeFilters {
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+  page?: number;
+  limit?: number;
 }

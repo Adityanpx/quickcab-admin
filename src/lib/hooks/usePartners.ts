@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { partnersApi } from "@/lib/api/partners";
 import type { KycRejectPayload } from "@/lib/api/partners";
-import type { PartnerListFilters, SuspendPartnerPayload } from "@/types/partner";
+import type { PartnerListFilters, SuspendPartnerPayload, RoleUpgradeFilters } from "@/types/partner";
 import toast from "react-hot-toast";
 
 export function usePartners(filters: PartnerListFilters = {}) {
@@ -159,6 +159,52 @@ export function useAdminUploadKycDoc() {
     },
     onError: (error: any) => {
       const msg = error?.message ?? "Failed to upload document image";
+      toast.error(msg);
+    },
+  });
+}
+
+// ─── ROLE UPGRADE REQUESTS (Driver → Partner) ────────────────────────────────
+
+export function useRoleUpgradeRequests(filters: RoleUpgradeFilters = {}) {
+  return useQuery({
+    queryKey: ["role-upgrades", filters],
+    queryFn: () => partnersApi.getRoleUpgradeRequests(filters),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useApproveRoleUpgrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, note }: { requestId: string; note?: string }) =>
+      partnersApi.approveRoleUpgrade(requestId, note),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["role-upgrades"] });
+      qc.invalidateQueries({ queryKey: ["partners"] });
+      qc.invalidateQueries({ queryKey: ["providers"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Role upgrade approved — user is now a Partner");
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? "Failed to approve role upgrade";
+      toast.error(msg);
+    },
+  });
+}
+
+export function useRejectRoleUpgrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, note }: { requestId: string; note: string }) =>
+      partnersApi.rejectRoleUpgrade(requestId, note),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["role-upgrades"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Role upgrade request rejected");
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? "Failed to reject role upgrade";
       toast.error(msg);
     },
   });

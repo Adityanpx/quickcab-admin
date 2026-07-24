@@ -5,6 +5,7 @@ import type {
   PartnerListFilters,
   SuspendPartnerPayload,
   RoleUpgradeRequest,
+  RoleUpgradeFilters,
 } from "@/types/partner";
 
 export interface KycRejectPayload {
@@ -140,11 +141,17 @@ export const partnersApi = {
     }
   },
 
-  getRoleUpgradeRequests: async (): Promise<RoleUpgradeRequest[]> => {
-    const response = await apiClient.get<ApiResponse<RoleUpgradeRequest[]>>(
-      "/admin/partners/role-upgrades"
-    );
-    return response.data.data;
+  getRoleUpgradeRequests: async (
+    filters: RoleUpgradeFilters = {}
+  ): Promise<PaginatedResponse<RoleUpgradeRequest>> => {
+    const response = await apiClient.get<
+      ApiResponse<RoleUpgradeRequest[]> & { pagination: PaginatedResponse<RoleUpgradeRequest>["pagination"] }
+    >("/admin/partners/role-upgrades", { params: filters });
+
+    return {
+      items: response.data.data || [],
+      pagination: response.data.pagination,
+    };
   },
 
   approveRoleUpgrade: async (requestId: string, note?: string) => {

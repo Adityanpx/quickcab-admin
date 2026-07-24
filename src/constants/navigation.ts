@@ -14,6 +14,7 @@ import {
   Activity,
   Wrench,
   Share2,
+  ArrowUpCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +50,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "KYC Queue",
     href: "/kyc",
     icon: FileCheck,
+  },
+  {
+    label: "Role Upgrades",
+    href: "/role-upgrades",
+    icon: ArrowUpCircle,
   },
   {
     label: "Bookings",
