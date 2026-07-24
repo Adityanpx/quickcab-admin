@@ -162,11 +162,14 @@ function PartnersPageContent() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
+      const exportLimit = Math.max(pagination?.total ?? 0, 1000);
       const allData = await partnersApi.getAll({
         search: search || undefined,
         status: (status as Partner["status"]) || undefined,
         subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
-        limit: 1000,
+        city: city || undefined,
+        ...getDateRange(datePreset),
+        limit: exportLimit,
       });
       const rows = allData.items.map((p) => [
         p.name,
@@ -174,11 +177,11 @@ function PartnersPageContent() {
         p.email ?? "",
         p.partnerProfile?.subType ?? "",
         p.status,
-        p.kycRecord?.status ?? "",
+        p.kycRecord?.status ?? "Not Submitted",
         p.walletBalance,
         new Date(p.createdAt).toLocaleDateString("en-IN"),
       ]);
-      const header = ["Name", "Mobile", "Email", "Type", "Status", "KYC", "Wallet", "Joined"];
+      const header = ["Name", "Mobile", "Email", "Type", "Status", "KYC Status", "Wallet (₹)", "Joined"];
       const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
@@ -187,7 +190,7 @@ function PartnersPageContent() {
       a.download = `quickcab-partners-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("CSV exported");
+      toast.success(`CSV exported — ${allData.items.length} partner${allData.items.length === 1 ? "" : "s"}`);
     } catch {
       toast.error("Export failed");
     } finally {
