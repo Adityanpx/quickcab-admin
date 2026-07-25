@@ -164,23 +164,40 @@ function ProvidersPageContent() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const allData = await providersApi.getAll({
+      // The server hard-caps `limit` at 100 per request, so a single call
+      // can never return more than 100 rows. Paginate and stitch together.
+      const baseFilters = {
         search: search || undefined,
         status: (status as Provider["status"]) || undefined,
         category: (category as ServiceProviderCategory) || undefined,
-        limit: 1000,
-      });
-      const rows = allData.items.map((p) => [
+        city: city || undefined,
+        ...getDateRange(datePreset),
+      };
+
+      const PAGE_SIZE = 100;
+      const SAFETY_MAX_PAGES = 200; // 20,000-row ceiling, avoids a runaway loop
+
+      const first = await providersApi.getAll({ ...baseFilters, page: 1, limit: PAGE_SIZE });
+      let allItems = [...first.items];
+      const total = first.pagination?.total ?? allItems.length;
+      const totalPages = Math.min(first.pagination?.totalPages ?? 1, SAFETY_MAX_PAGES);
+
+      for (let p = 2; p <= totalPages; p++) {
+        const next = await providersApi.getAll({ ...baseFilters, page: p, limit: PAGE_SIZE });
+        allItems = allItems.concat(next.items);
+      }
+
+      const rows = allItems.map((p) => [
         p.name,
         p.mobile,
         p.providerProfile?.email ?? "",
         p.providerProfile?.category ?? "",
         p.status,
-        p.kycRecord?.status ?? "",
+        p.kycRecord?.status ?? "Not Submitted",
         p.walletBalance,
         new Date(p.createdAt).toLocaleDateString("en-IN"),
       ]);
-      const header = ["Name", "Mobile", "Email", "Category", "Status", "KYC", "Wallet", "Joined"];
+      const header = ["Name", "Mobile", "Email", "Category", "Status", "KYC Status", "Wallet (₹)", "Joined"];
       const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
@@ -189,7 +206,12 @@ function ProvidersPageContent() {
       a.download = `quickcab-providers-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("CSV exported");
+
+      if (allItems.length < total) {
+        toast.error(`Exported ${allItems.length} of ${total} — hit the safety page cap. Narrow your filters and export again for the rest.`);
+      } else {
+        toast.success(`CSV exported — ${allItems.length} provider${allItems.length === 1 ? "" : "s"}`);
+      }
     } catch {
       toast.error("Export failed");
     } finally {

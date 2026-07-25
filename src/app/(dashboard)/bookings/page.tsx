@@ -97,13 +97,29 @@ function BookingsPageContent() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const allData = await bookingsApi.getAll({
+      // The server hard-caps `limit` at 100 per request, so a single call
+      // can never return more than 100 rows. Paginate and stitch together.
+      const baseFilters = {
+        search: search || undefined,
         status: (status as Booking["status"]) || undefined,
         vehicleType: vehicleType || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
-        limit: 1000,
-      });
+      };
+
+      const PAGE_SIZE = 100;
+      const SAFETY_MAX_PAGES = 200; // 20,000-row ceiling, avoids a runaway loop
+
+      const first = await bookingsApi.getAll({ ...baseFilters, page: 1, limit: PAGE_SIZE });
+      let allItems = [...first.items];
+      const total = first.pagination?.total ?? allItems.length;
+      const totalPages = Math.min(first.pagination?.totalPages ?? 1, SAFETY_MAX_PAGES);
+
+      for (let p = 2; p <= totalPages; p++) {
+        const next = await bookingsApi.getAll({ ...baseFilters, page: p, limit: PAGE_SIZE });
+        allItems = allItems.concat(next.items);
+      }
+
       const header = [
         "ID", "Pickup", "Drop", "Date", "Time",
         "Vehicle Type", "Vehicle Name", "Trip Type", "Fuel", "Carrier",
@@ -111,7 +127,7 @@ function BookingsPageContent() {
         "Partner A", "Partner A Mobile",
         "Partner B", "Partner B Mobile",
       ];
-      const rows = allData.items.map((b) => [
+      const rows = allItems.map((b) => [
         b.id,
         b.pickupCity,
         b.dropCity,
@@ -137,7 +153,12 @@ function BookingsPageContent() {
       a.download = `quickcab-bookings-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("CSV exported");
+
+      if (allItems.length < total) {
+        toast.error(`Exported ${allItems.length} of ${total} — hit the safety page cap. Narrow your filters and export again for the rest.`);
+      } else {
+        toast.success(`CSV exported — ${allItems.length} booking${allItems.length === 1 ? "" : "s"}`);
+      }
     } catch {
       toast.error("Export failed");
     } finally {
