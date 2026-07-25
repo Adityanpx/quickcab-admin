@@ -32,6 +32,7 @@ export interface DashboardStats {
     rejectedToday: number;
   };
   generatedAt: string;
+  onlineUsersCount: number;
 }
 
 // ─── SubAdmin Types ───────────────────────────────────────────────────────────

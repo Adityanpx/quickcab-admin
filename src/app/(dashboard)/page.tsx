@@ -10,6 +10,7 @@ import { RecentWithdrawals } from "@/components/dashboard/RecentWithdrawals";
 import { DashboardSkeleton } from "@/components/ui/SkeletonLoader";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useOnlineCount } from "@/lib/hooks/useOnlineCount";
 
 // Stagger children animation
 const containerVariants = {
@@ -39,6 +40,7 @@ function getGreeting(): string {
 
 export default function DashboardPage() {
   const { data: stats, isLoading, isError, refetch, isFetching } = useDashboardStats();
+  const { count: onlineCount, isLive } = useOnlineCount(stats?.onlineUsersCount);
 
   if (isLoading) return <DashboardSkeleton />;
 
@@ -72,20 +74,38 @@ export default function DashboardPage() {
             {getGreeting()}, Admin — here&apos;s what&apos;s happening today
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={
-            <RefreshCw
-              size={14}
-              className={isFetching ? "animate-spin" : ""}
-            />
-          }
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          {onlineCount !== undefined && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 dark:bg-brand-green-muted border border-green-200 dark:border-brand-green/20"
+              title={isLive ? "Live — updates in real time" : "Last known count, connecting to live updates..."}
+            >
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`absolute inline-flex h-full w-full rounded-full bg-green-500 dark:bg-brand-green ${isLive ? "animate-ping opacity-75" : "opacity-40"}`}
+                />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500 dark:bg-brand-green" />
+              </span>
+              <span className="text-[12px] font-semibold text-green-700 dark:text-brand-green">
+                {onlineCount.toLocaleString("en-IN")} online
+              </span>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={
+              <RefreshCw
+                size={14}
+                className={isFetching ? "animate-spin" : ""}
+              />
+            }
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            Refresh
+          </Button>
+        </div>
       </motion.div>
 
       {/* ── Stat Cards ──────────────────────────────── */}
