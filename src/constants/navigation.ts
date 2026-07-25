@@ -15,6 +15,7 @@ import {
   Wrench,
   Share2,
   ArrowUpCircle,
+  UserX,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +56,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Role Upgrades",
     href: "/role-upgrades",
     icon: ArrowUpCircle,
+  },
+  {
+    label: "Incomplete Signups",
+    href: "/incomplete-signups",
+    icon: UserX,
   },
   {
     label: "Bookings",
