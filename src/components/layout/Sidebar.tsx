@@ -109,7 +109,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* ── Navigation ───────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-        {NAV_ITEMS.map((item, i) => {
+        {NAV_ITEMS.filter(
+          (item) => !item.roles || item.roles.includes((admin?.role?.toUpperCase() as "SUPERADMIN" | "SUBADMIN"))
+        ).map((item, i) => {
           const active = isActive(item.href);
           const Icon = item.icon;
 

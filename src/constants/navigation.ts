@@ -18,12 +18,14 @@ import {
   UserX,
   type LucideIcon,
 } from "lucide-react";
+import type { AdminRole } from "@/lib/permissions";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
   badge?: string;
+  roles?: AdminRole[];
 }
 
 export interface NavGroup {
@@ -56,11 +58,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Role Upgrades",
     href: "/role-upgrades",
     icon: ArrowUpCircle,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Incomplete Signups",
     href: "/incomplete-signups",
     icon: UserX,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Bookings",
@@ -71,50 +75,60 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Wallet & Payouts",
     href: "/wallet",
     icon: Wallet,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Referral Management",
     href: "/referral-links",
     icon: Share2,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Ratings",
     href: "/ratings",
     icon: Star,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Subscriptions",
     href: "/subscriptions",
     icon: CreditCard,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Notifications",
     href: "/notifications",
     icon: Bell,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Advertisements",
     href: "/ads",
     icon: Megaphone,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Announcements",
     href: "/announcements",
     icon: Radio,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Support Tickets",
     href: "/support",
     icon: Ticket,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "Settings",
     href: "/settings",
     icon: Settings,
+    roles: ["SUPERADMIN"],
   },
   {
     label: "SubAdmin Logs",
     href: "/subadmin-logs",
     icon: Activity,
+    roles: ["SUPERADMIN"],
   },
 ];

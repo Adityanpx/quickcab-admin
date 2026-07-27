@@ -223,7 +223,7 @@ export default function LoginPage() {
             variants={itemVariants}
             className="text-light-text-2 dark:text-dark-text-2 text-sm"
           >
-            Sign in to your SuperAdmin dashboard
+            Sign in to your dashboard
           </motion.p>
         </motion.div>
 
@@ -238,7 +238,7 @@ export default function LoginPage() {
           >
             <Shield size={14} className="text-brand-purple" />
             <span className="text-xs font-medium text-brand-purple">
-              SuperAdmin Access
+              Admin Access
             </span>
           </motion.div>
 
@@ -358,7 +358,7 @@ export default function LoginPage() {
           transition={{ delay: 0.6 }}
           className="text-center text-xs text-light-text-3 dark:text-dark-text-3 mt-6"
         >
-          QuickCab SuperAdmin Panel — Restricted Access
+          QuickCab Admin Panel — Restricted Access
         </motion.p>
       </motion.div>
 
