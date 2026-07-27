@@ -1,11 +1,14 @@
 "use client";
 
-import { Suspense, useCallback, useRef } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
-import { UserX, Phone, MessageCircle, Clock } from "lucide-react";
+import { UserX, Phone, MessageCircle, Clock, Download } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import toast from "react-hot-toast";
 import { useIncompleteSignups } from "@/lib/hooks/useIncompleteSignups";
+import { incompleteSignupsApi } from "@/lib/api/incompleteSignups";
+import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -69,6 +72,58 @@ function IncompleteSignupsPageContent() {
 
   const { data, isLoading } = useIncompleteSignups({ page, limit: 20, search: search || undefined });
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      // Server hard-caps `limit` at 100 per request (getPaginationParams),
+      // so paginate through every page and stitch results together —
+      // same pattern as the Partners page export.
+      const baseFilters = { search: search || undefined };
+
+      const PAGE_SIZE = 100;
+      const SAFETY_MAX_PAGES = 200; // 20,000 rows ceiling — avoids a runaway loop
+
+      const first = await incompleteSignupsApi.getAll({ ...baseFilters, page: 1, limit: PAGE_SIZE });
+      let allItems = [...first.items];
+      const total = first.pagination?.total ?? allItems.length;
+      const totalPages = Math.min(first.pagination?.totalPages ?? 1, SAFETY_MAX_PAGES);
+
+      for (let p = 2; p <= totalPages; p++) {
+        const next = await incompleteSignupsApi.getAll({ ...baseFilters, page: p, limit: PAGE_SIZE });
+        allItems = allItems.concat(next.items);
+      }
+
+      const rows = allItems.map((u) => [
+        u.mobile,
+        `"${(u.name ?? "").replace(/"/g, '""')}"`,
+        u.language,
+        new Date(u.createdAt).toLocaleDateString("en-IN"),
+        u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString("en-IN") : "Never",
+      ]);
+      const header = ["Mobile", "Name", "Language", "Signed Up", "Last Active"];
+      const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `quickcab-incomplete-signups-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      if (allItems.length < total) {
+        toast.error(`Exported ${allItems.length} of ${total} — hit the safety page cap. Narrow your search and export again for the rest.`);
+      } else {
+        toast.success(`CSV exported — ${allItems.length} signup${allItems.length === 1 ? "" : "s"}`);
+      }
+    } catch {
+      toast.error("Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const items = data?.items ?? [];
   const pagination = data?.pagination;
 
@@ -108,12 +163,24 @@ function IncompleteSignupsPageContent() {
 
       {/* ── Search ──────────────────────────────────── */}
       <motion.div custom={2} variants={sectionVariants} initial="hidden" animate="visible">
-        <SearchInput
-          placeholder="Search by mobile number..."
-          defaultValue={search}
-          onSearch={handleSearch}
-          className="sm:w-80"
-        />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <SearchInput
+            placeholder="Search by mobile number..."
+            defaultValue={search}
+            onSearch={handleSearch}
+            className="sm:w-80"
+          />
+          <div className="flex-1" />
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Download size={14} />}
+            onClick={handleExport}
+            loading={isExporting}
+          >
+            Export CSV
+          </Button>
+        </div>
       </motion.div>
 
       {/* ── Table ───────────────────────────────────── */}
