@@ -131,4 +131,9 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Activity,
     roles: ["SUPERADMIN"],
   },
+  {
+    label: "My Activity",
+    href: "/my-activity",
+    icon: Activity,
+  },
 ];
