@@ -40,6 +40,14 @@ export function useAdminAccountActivity(id: string, params: AdminActivityParams 
   });
 }
 
+export function useMyActivity(params: AdminActivityParams = {}) {
+  return useQuery({
+    queryKey: ["admin-accounts", "me", "activity", params],
+    queryFn: () => adminAccountsApi.getMyActivity(params),
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useCreateAdminAccount() {
   const qc = useQueryClient();
   return useMutation({
