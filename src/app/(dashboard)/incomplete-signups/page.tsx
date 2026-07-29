@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
-import { UserX, Phone, MessageCircle, Clock, Download } from "lucide-react";
+import { UserX, MessageCircle, Clock, Download } from "lucide-react";
+import { CallButton } from "@/components/shared/CallButton";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { useIncompleteSignups } from "@/lib/hooks/useIncompleteSignups";
@@ -278,13 +279,11 @@ function IncompleteSignupsPageContent() {
                             >
                               <MessageCircle size={15} />
                             </a>
-                            <a
-                              href={`tel:+${normalized}`}
-                              className="w-8 h-8 rounded-lg bg-light-surface-2 dark:bg-dark-surface hover:bg-light-border dark:hover:bg-dark-border flex items-center justify-center text-light-text-2 dark:text-dark-text-2 transition-colors"
-                              title="Call"
-                            >
-                              <Phone size={15} />
-                            </a>
+                            <CallButton
+                              userId={user.id}
+                              phone={normalized}
+                              targetName={user.name}
+                            />
                           </div>
                         </td>
                       </motion.tr>
