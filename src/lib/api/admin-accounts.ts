@@ -87,7 +87,31 @@ function buildPagination(total: number, page: number, pageSize: number) {
   };
 }
 
+export interface LogCallPayload {
+  targetName?: string;
+  outcome: "CONNECTED" | "NOT_REACHABLE" | "CALL_BACK_LATER" | "OTHER";
+  note?: string;
+}
+
 export const adminAccountsApi = {
+  // Self-scoped — no admin id needed, backend resolves it from the JWT.
+  getMyActivity: async (
+    params: AdminActivityParams = {}
+  ): Promise<PaginatedResponse<AdminActivityLog>> => {
+    const { dateFrom, dateTo, ...rest } = params;
+    const response = await apiClient.get<
+      ApiResponse<{ logs: AdminActivityLog[]; total: number; page: number; pageSize: number }>
+    >("/admin/admins/me/activity", {
+      params: { ...rest, from: dateFrom, to: dateTo },
+    });
+    const { logs, total, page, pageSize } = response.data.data;
+    return { items: logs ?? [], pagination: buildPagination(total, page, pageSize) };
+  },
+
+  logCall: async (userId: string, payload: LogCallPayload): Promise<void> => {
+    await apiClient.post(`/admin/calls/${userId}/log`, payload);
+  },
+
   list: async (
     params: AdminAccountListParams = {}
   ): Promise<PaginatedResponse<AdminAccount>> => {
