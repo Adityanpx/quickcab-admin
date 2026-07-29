@@ -20,7 +20,7 @@ export function CallButton({
 }: {
   userId: string;
   phone: string; // digits only, e.g. "919876543210"
-  targetName?: string;
+  targetName?: string | null;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -38,7 +38,7 @@ export function CallButton({
     if (!outcome) return;
     setSaving(true);
     try {
-      await adminAccountsApi.logCall(userId, { targetName, outcome, note: note || undefined });
+      await adminAccountsApi.logCall(userId, { targetName: targetName ?? undefined, outcome, note: note || undefined });
       toast.success("Call logged");
       setOpen(false);
       setOutcome(null);
