@@ -14,9 +14,9 @@ export function StatCards({ stats }: StatCardsProps) {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         index={0}
-        label="Total Partners"
-        value={stats.partners.total.toLocaleString("en-IN")}
-        subtext={`${stats.partners.active} active`}
+        label="Total Users"
+        value={(stats.partners.total + stats.providers.total).toLocaleString("en-IN")}
+        subtext={`${(stats.partners.active + stats.providers.active).toLocaleString("en-IN")} active`}
         trend="up"
         trendValue="12% this month"
         icon={<Users size={16} />}

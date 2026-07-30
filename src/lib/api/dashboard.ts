@@ -11,6 +11,13 @@ export interface DashboardStats {
     vehicleOwners: number;
     vendors: number;
   };
+  providers: {
+    total: number;
+    active: number;
+    pendingKyc: number;
+    suspended: number;
+    blocked: number;
+  };
   bookings: {
     today: number;
     total: number;
