@@ -12,6 +12,7 @@ import { StatCardSkeleton } from "@/components/ui/SkeletonLoader";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import type { ReferralCodeStat } from "@/types/referral-link";
+import { cn } from "@/lib/utils";
 
 const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
@@ -73,7 +74,42 @@ function ReferralLinksPageContent() {
   );
 
   const columns: Column<ReferralCodeRow>[] = [
-    { key: "referralCode", header: "Referral Code", sortable: true },
+    {
+      key: "ownerName",
+      header: "Referrer",
+      sortable: true,
+      render: (_value, row) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] font-semibold text-light-text dark:text-dark-text">
+            {row.ownerName ?? "Unknown user"}
+          </span>
+          <span className="text-[11px] text-light-text-3 dark:text-dark-text-3 font-mono">
+            {row.referralCode}
+            {row.ownerMobile ? ` · ${row.ownerMobile}` : ""}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "ownerRole",
+      header: "Role",
+      sortable: true,
+      render: (value) =>
+        value ? (
+          <span
+            className={cn(
+              "inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium",
+              value === "PARTNER"
+                ? "bg-brand-purple-muted/40 text-brand-purple dark:bg-brand-purple-muted-dark/40"
+                : "bg-brand-green-muted/40 text-brand-green dark:bg-brand-green-muted-dark/40"
+            )}
+          >
+            {value === "PARTNER" ? "Partner" : "Provider"}
+          </span>
+        ) : (
+          <span className="text-[11px] text-light-text-3 dark:text-dark-text-3">—</span>
+        ),
+    },
     { key: "clicks", header: "Clicks", sortable: true, align: "right" },
     { key: "installs", header: "Installs", sortable: true, align: "right" },
     { key: "registrations", header: "Registrations", sortable: true, align: "right" },
