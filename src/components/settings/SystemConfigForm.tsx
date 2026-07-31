@@ -60,6 +60,11 @@ const CONFIG_METADATA: Record<
     description: "Toggle subscription enforcement for Service Providers",
     type: "boolean",
   },
+  maintenance_mode: {
+    label: "Maintenance Mode",
+    description: "When ON, the app shows a full-screen maintenance notice and blocks all non-admin API calls. Takes effect immediately — active users are moved to the maintenance screen via socket.",
+    type: "boolean",
+  },
 };
 
 interface SystemConfigFormProps {
@@ -114,12 +119,14 @@ export function SystemConfigForm({ configs, onSave }: SystemConfigFormProps) {
 
   // Group configs
   const grouped = {
+    system: ["maintenance_mode"],
     wallet: ["coins_per_lead", "coin_value_inr", "min_withdrawal_coins", "max_withdrawal_coins"],
     bookings: ["booking_expiry_hours", "rating_window_hours"],
     subscriptions: ["subscription_partner_enabled", "subscription_provider_enabled"],
   };
 
   const groupLabels: Record<string, string> = {
+    system: "System Control",
     wallet: "Wallet & Coins",
     bookings: "Booking Settings",
     subscriptions: "Subscription Control",
