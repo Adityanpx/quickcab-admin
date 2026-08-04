@@ -46,6 +46,7 @@ function PartnersPageContent() {
   const page       = Number(searchParams.get("page")       ?? "1");
   const search     = searchParams.get("search")     ?? "";
   const status     = searchParams.get("status")     ?? "";
+  const kycStatus  = searchParams.get("kycStatus")  ?? "";
   const subType    = searchParams.get("subType")    ?? "";
   const city       = searchParams.get("city")       ?? "";
   const datePreset = searchParams.get("datePreset") ?? "";
@@ -76,13 +77,14 @@ function PartnersPageContent() {
   const cities = citiesData ?? [];
 
   const { data, isLoading } = useQuery({
-    queryKey: ["partners", { page, search, status, subType, city, datePreset }],
+    queryKey: ["partners", { page, search, status, kycStatus, subType, city, datePreset }],
     queryFn: () =>
       partnersApi.getAll({
         page,
         limit: 15,
         search: search || undefined,
         status: (status as Partner["status"]) || undefined,
+        kycStatus: (kycStatus as "NOT_SUBMITTED" | "IN_PROGRESS" | "PENDING" | "APPROVED" | "REJECTED") || undefined,
         subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
         city: city || undefined,
         ...getDateRange(datePreset),
@@ -107,6 +109,7 @@ function PartnersPageContent() {
   }, [updateParams]);
 
   const handleStatusChange  = useCallback((v: string) => updateParams({ status: v,  page: "1" }), [updateParams]);
+  const handleKycStatusChange = useCallback((v: string) => updateParams({ kycStatus: v, page: "1" }), [updateParams]);
   const handleSubTypeChange = useCallback((v: string) => updateParams({ subType: v, page: "1" }), [updateParams]);
   const handleCityChange    = useCallback((v: string) => updateParams({ city: v,    page: "1" }), [updateParams]);
 
@@ -168,6 +171,7 @@ function PartnersPageContent() {
       const baseFilters = {
         search: search || undefined,
         status: (status as Partner["status"]) || undefined,
+        kycStatus: (kycStatus as "NOT_SUBMITTED" | "IN_PROGRESS" | "PENDING" | "APPROVED" | "REJECTED") || undefined,
         subType: (subType as "VEHICLE_OWNER" | "VENDOR") || undefined,
         city: city || undefined,
         ...getDateRange(datePreset),
@@ -248,7 +252,7 @@ function PartnersPageContent() {
           value={(pagination?.total ?? 0).toLocaleString("en-IN")}
           icon={<Users size={16} />}
           accentColor="purple"
-          onClick={() => updateParams({ status: "", subType: "", city: "", datePreset: "", page: "1" })}
+          onClick={() => updateParams({ status: "", kycStatus: "", subType: "", city: "", datePreset: "", page: "1" })}
         />
         <StatCard
           index={1}
@@ -289,6 +293,8 @@ function PartnersPageContent() {
           onSearchChange={handleSearch}
           status={status}
           onStatusChange={handleStatusChange}
+          kycStatus={kycStatus}
+          onKycStatusChange={handleKycStatusChange}
           subType={subType}
           onSubTypeChange={handleSubTypeChange}
           city={city}

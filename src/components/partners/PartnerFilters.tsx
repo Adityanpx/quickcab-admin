@@ -10,6 +10,8 @@ interface PartnerFiltersProps {
   onSearchChange: (v: string) => void;
   status: string;
   onStatusChange: (v: string) => void;
+  kycStatus: string;
+  onKycStatusChange: (v: string) => void;
   subType: string;
   onSubTypeChange: (v: string) => void;
   city: string;
@@ -28,6 +30,12 @@ const STATUS_OPTIONS = [
   { value: "BLOCKED",          label: "Blocked" },
 ];
 
+const KYC_STATUS_OPTIONS = [
+  { value: "PENDING",  label: "KYC Pending" },
+  { value: "APPROVED", label: "KYC Approved" },
+  { value: "REJECTED", label: "KYC Rejected" },
+];
+
 const SUBTYPE_OPTIONS = [
   { value: "VEHICLE_OWNER", label: "Vehicle Owner" },
   { value: "VENDOR", label: "Vendor" },
@@ -38,6 +46,8 @@ export function PartnerFilters({
   onSearchChange,
   status,
   onStatusChange,
+  kycStatus,
+  onKycStatusChange,
   subType,
   onSubTypeChange,
   city,
@@ -63,6 +73,13 @@ export function PartnerFilters({
         options={STATUS_OPTIONS}
         placeholder="All Statuses"
         className="sm:w-44"
+      />
+      <FilterSelect
+        value={kycStatus}
+        onChange={onKycStatusChange}
+        options={KYC_STATUS_OPTIONS}
+        placeholder="All KYC"
+        className="sm:w-40"
       />
 
       {/* Sub-type filter */}

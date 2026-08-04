@@ -10,6 +10,8 @@ interface ProviderFiltersProps {
   onSearchChange: (v: string) => void;
   status: string;
   onStatusChange: (v: string) => void;
+  kycStatus: string;
+  onKycStatusChange: (v: string) => void;
   category: string;
   onCategoryChange: (v: string) => void;
   city: string;
@@ -28,6 +30,12 @@ const STATUS_OPTIONS = [
   { value: "BLOCKED",          label: "Blocked" },
 ];
 
+const KYC_STATUS_OPTIONS = [
+  { value: "PENDING",  label: "KYC Pending" },
+  { value: "APPROVED", label: "KYC Approved" },
+  { value: "REJECTED", label: "KYC Rejected" },
+];
+
 const CATEGORY_OPTIONS = [
   { value: "DRIVER",           label: "Driver" },
   { value: "PUNCTURE_REPAIR",  label: "Puncture Repair" },
@@ -43,6 +51,8 @@ export function ProviderFilters({
   onSearchChange,
   status,
   onStatusChange,
+  kycStatus,
+  onKycStatusChange,
   category,
   onCategoryChange,
   city,
@@ -68,6 +78,13 @@ export function ProviderFilters({
         options={STATUS_OPTIONS}
         placeholder="All Statuses"
         className="sm:w-44"
+      />
+      <FilterSelect
+        value={kycStatus}
+        onChange={onKycStatusChange}
+        options={KYC_STATUS_OPTIONS}
+        placeholder="All KYC"
+        className="sm:w-40"
       />
 
       {/* Category filter */}

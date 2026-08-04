@@ -52,6 +52,7 @@ function ProvidersPageContent() {
   const page       = Number(searchParams.get("page")       ?? "1");
   const search     = searchParams.get("search")     ?? "";
   const status     = searchParams.get("status")     ?? "";
+  const kycStatus  = searchParams.get("kycStatus")  ?? "";
   const category   = searchParams.get("category")   ?? "";
   const city       = searchParams.get("city")       ?? "";
   const datePreset = searchParams.get("datePreset") ?? "";
@@ -81,13 +82,14 @@ function ProvidersPageContent() {
   const cities = citiesData ?? [];
 
   const { data, isLoading } = useQuery({
-    queryKey: ["providers", { page, search, status, category, city, datePreset }],
+    queryKey: ["providers", { page, search, status, kycStatus, category, city, datePreset }],
     queryFn: () =>
       providersApi.getAll({
         page,
         limit: 15,
         search: search || undefined,
         status: (status as Provider["status"]) || undefined,
+        kycStatus: (kycStatus as "NOT_SUBMITTED" | "IN_PROGRESS" | "PENDING" | "APPROVED" | "REJECTED") || undefined,
         category: (category as ServiceProviderCategory) || undefined,
         city: city || undefined,
         ...getDateRange(datePreset),
@@ -112,6 +114,7 @@ function ProvidersPageContent() {
   }, [updateParams]);
 
   const handleStatusChange   = useCallback((v: string) => updateParams({ status: v,   page: "1" }), [updateParams]);
+  const handleKycStatusChange = useCallback((v: string) => updateParams({ kycStatus: v, page: "1" }), [updateParams]);
   const handleCategoryChange = useCallback((v: string) => updateParams({ category: v, page: "1" }), [updateParams]);
   const handleCityChange     = useCallback((v: string) => updateParams({ city: v,     page: "1" }), [updateParams]);
 
@@ -169,6 +172,7 @@ function ProvidersPageContent() {
       const baseFilters = {
         search: search || undefined,
         status: (status as Provider["status"]) || undefined,
+        kycStatus: (kycStatus as "NOT_SUBMITTED" | "IN_PROGRESS" | "PENDING" | "APPROVED" | "REJECTED") || undefined,
         category: (category as ServiceProviderCategory) || undefined,
         city: city || undefined,
         ...getDateRange(datePreset),
@@ -246,7 +250,7 @@ function ProvidersPageContent() {
           value={(pagination?.total ?? 0).toLocaleString("en-IN")}
           icon={<Wrench size={16} />}
           accentColor="purple"
-          onClick={() => updateParams({ status: "", category: "", city: "", datePreset: "", page: "1" })}
+          onClick={() => updateParams({ status: "", kycStatus: "", category: "", city: "", datePreset: "", page: "1" })}
         />
         <StatCard
           index={1}
@@ -287,6 +291,8 @@ function ProvidersPageContent() {
           onSearchChange={handleSearch}
           status={status}
           onStatusChange={handleStatusChange}
+          kycStatus={kycStatus}
+          onKycStatusChange={handleKycStatusChange}
           category={category}
           onCategoryChange={handleCategoryChange}
           city={city}

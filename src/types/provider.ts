@@ -71,6 +71,7 @@ export interface ProviderListFilters {
   limit?: number;
   search?: string;
   status?: UserStatus;
+  kycStatus?: "NOT_SUBMITTED" | "IN_PROGRESS" | "PENDING" | "APPROVED" | "REJECTED";
   category?: ServiceProviderCategory;
   city?: string;
   dateFrom?: string;

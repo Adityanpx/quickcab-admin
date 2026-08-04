@@ -95,6 +95,7 @@ export interface PartnerListFilters {
   limit?: number;
   search?: string;
   status?: UserStatus;
+  kycStatus?: "NOT_SUBMITTED" | "IN_PROGRESS" | "PENDING" | "APPROVED" | "REJECTED";
   subType?: PartnerSubType;
   city?: string;
   dateFrom?: string;
