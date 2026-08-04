@@ -2,16 +2,29 @@ import apiClient from "./client";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 
 export type TicketStatus = "OPEN" | "IN_REVIEW" | "RESOLVED" | "CLOSED";
+export type TicketCategory = "BOOKING" | "WALLET" | "KYC" | "ACCOUNT" | "OTHER";
+
+export interface TicketMessage {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderType: "USER" | "ADMIN";
+  message: string;
+  attachmentUrl: string | null;
+  createdAt: string;
+}
 
 export interface SupportTicket {
   id: string;
-  issue: string;
-  message: string;
+  subject: string;
+  category: TicketCategory;
   status: TicketStatus;
-  adminNote: string | null;
+  assignedTo: string | null;
   resolvedAt: string | null;
+  closedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  messages: TicketMessage[];
   user: {
     id: string;
     name: string;

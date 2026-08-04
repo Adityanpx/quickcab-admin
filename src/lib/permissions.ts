@@ -15,7 +15,7 @@ export const ROUTE_PERMISSIONS: Record<string, AdminRole[]> = {
   "/notifications": ["SUPERADMIN"],
   "/ads": ["SUPERADMIN"],
   "/announcements": ["SUPERADMIN"],
-  "/support": ["SUPERADMIN"],
+  "/support": ["SUPERADMIN", "SUBADMIN"],
   "/settings": ["SUPERADMIN"],
   "/subadmin-logs": ["SUPERADMIN"],
 };

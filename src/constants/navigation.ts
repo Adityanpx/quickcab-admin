@@ -117,7 +117,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Support Tickets",
     href: "/support",
     icon: Ticket,
-    roles: ["SUPERADMIN"],
+    roles: ["SUPERADMIN", "SUBADMIN"],
   },
   {
     label: "Settings",

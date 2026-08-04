@@ -104,10 +104,10 @@ export function TicketTable({
                   {/* Issue */}
                   <td>
                     <p className="text-[13px] font-medium text-light-text dark:text-dark-text">
-                      {ticket.issue}
+                      {ticket.subject}
                     </p>
                     <p className="text-[12px] text-light-text-3 dark:text-dark-text-3 max-w-[240px] truncate">
-                      {ticket.message}
+                      {ticket.messages?.[0]?.message ?? ticket.category}
                     </p>
                   </td>
 

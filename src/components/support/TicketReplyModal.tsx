@@ -7,6 +7,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/utils";
 import type { SupportTicket, TicketStatus } from "@/lib/api/support";
+import { useSupportTicket } from "@/lib/hooks/useSupport";
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: "IN_REVIEW", label: "Mark In Review" },
@@ -32,6 +33,13 @@ export function TicketReplyModal({
   const [status, setStatus] = useState<TicketStatus>("IN_REVIEW");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+
+  // Fetch the full ticket so we get the entire message thread, not just the
+  // latest message the list endpoint returns.
+  const { data: detailTicket, isLoading: isDetailLoading } = useSupportTicket(
+    ticket?.id ?? ""
+  );
+  const messages = detailTicket?.messages ?? ticket?.messages ?? [];
 
   const handleConfirm = () => {
     if (!note.trim() || note.trim().length < 5) {
@@ -77,35 +85,59 @@ export function TicketReplyModal({
     >
       {ticket && (
         <div className="space-y-4">
-          {/* Original ticket */}
-          <div className="px-4 py-3 rounded-xl bg-light-surface-2 dark:bg-dark-surface border border-light-border dark:border-dark-border">
-            <div className="flex items-center justify-between mb-1.5">
+          {/* Ticket header */}
+          <div className="flex items-center justify-between">
+            <div>
               <p className="text-[13px] font-semibold text-light-text dark:text-dark-text">
-                {ticket.issue}
+                {detailTicket?.subject ?? "Support ticket"}
               </p>
-              <span className="text-[11px] text-light-text-3 dark:text-dark-text-3">
-                {formatDateTime(ticket.createdAt)}
-              </span>
+              <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
+                {ticket.user.name} · {ticket.user.mobile}
+                {detailTicket?.category ? ` · ${detailTicket.category}` : ""}
+              </p>
             </div>
-            <p className="text-[13px] text-light-text-2 dark:text-dark-text-2 leading-relaxed">
-              {ticket.message}
-            </p>
-            <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-2">
-              From: {ticket.user.name} · {ticket.user.mobile}
-            </p>
+            <span className="text-[11px] text-light-text-3 dark:text-dark-text-3">
+              {formatDateTime(ticket.createdAt)}
+            </span>
           </div>
 
-          {/* Previous admin note */}
-          {ticket.adminNote && (
-            <div className="px-4 py-3 rounded-xl bg-brand-purple-muted dark:bg-brand-purple-muted-dark border border-brand-purple/20">
-              <p className="text-[11px] font-semibold text-brand-purple mb-1">
-                Previous Admin Note
+          {/* Conversation thread */}
+          <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+            {isDetailLoading ? (
+              <p className="text-[12px] text-light-text-3 dark:text-dark-text-3">
+                Loading conversation…
               </p>
-              <p className="text-[13px] text-light-text dark:text-dark-text">
-                {ticket.adminNote}
+            ) : messages.length === 0 ? (
+              <p className="text-[12px] text-light-text-3 dark:text-dark-text-3">
+                No messages in this ticket.
               </p>
-            </div>
-          )}
+            ) : (
+              messages.map((m) => {
+                const isAdmin = m.senderType === "ADMIN";
+                return (
+                  <div
+                    key={m.id}
+                    className={cn(
+                      "px-3 py-2 rounded-xl max-w-[85%]",
+                      isAdmin
+                        ? "ml-auto bg-brand-purple-muted dark:bg-brand-purple-muted-dark border border-brand-purple/20"
+                        : "mr-auto bg-light-surface-2 dark:bg-dark-surface border border-light-border dark:border-dark-border"
+                    )}
+                  >
+                    <p className="text-[10px] font-semibold mb-0.5 text-light-text-3 dark:text-dark-text-3">
+                      {isAdmin ? "Admin" : ticket.user.name}
+                    </p>
+                    <p className="text-[13px] text-light-text dark:text-dark-text leading-relaxed whitespace-pre-wrap">
+                      {m.message}
+                    </p>
+                    <p className="text-[10px] text-light-text-3 dark:text-dark-text-3 mt-1">
+                      {formatDateTime(m.createdAt)}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
 
           {/* New status */}
           <div>
