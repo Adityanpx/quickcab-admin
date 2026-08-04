@@ -55,7 +55,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FileCheck,
   },
   {
-    label: "Role Upgrades",
+    label: "Upgrades To Partner",
     href: "/role-upgrades",
     icon: ArrowUpCircle,
     roles: ["SUPERADMIN"],
