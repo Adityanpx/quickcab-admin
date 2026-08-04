@@ -17,6 +17,7 @@ interface PartnerFiltersProps {
   city: string;
   onCityChange: (v: string) => void;
   cities: { city: string; count: number }[];
+  onClearFilters: () => void;
   onExport: () => void;
   isExporting?: boolean;
 }
@@ -53,6 +54,7 @@ export function PartnerFilters({
   city,
   onCityChange,
   cities,
+  onClearFilters,
   onExport,
   isExporting,
 }: PartnerFiltersProps) {
@@ -102,6 +104,12 @@ export function PartnerFilters({
         placeholder="All Cities"
         className="sm:w-44"
       />
+
+      {(status || kycStatus || subType || city || search) && (
+        <Button variant="ghost" size="sm" onClick={onClearFilters}>
+          Clear filters
+        </Button>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />

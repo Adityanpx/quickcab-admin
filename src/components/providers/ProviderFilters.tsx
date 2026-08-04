@@ -17,6 +17,7 @@ interface ProviderFiltersProps {
   city: string;
   onCityChange: (v: string) => void;
   cities: { city: string; count: number }[];
+  onClearFilters: () => void;
   onExport: () => void;
   isExporting?: boolean;
 }
@@ -58,6 +59,7 @@ export function ProviderFilters({
   city,
   onCityChange,
   cities,
+  onClearFilters,
   onExport,
   isExporting,
 }: ProviderFiltersProps) {
@@ -107,6 +109,12 @@ export function ProviderFilters({
         placeholder="All Cities"
         className="sm:w-44"
       />
+
+      {(status || kycStatus || category || city || search) && (
+        <Button variant="ghost" size="sm" onClick={onClearFilters}>
+          Clear filters
+        </Button>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />

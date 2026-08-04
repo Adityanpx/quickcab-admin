@@ -112,6 +112,7 @@ function PartnersPageContent() {
   const handleKycStatusChange = useCallback((v: string) => updateParams({ kycStatus: v, page: "1" }), [updateParams]);
   const handleSubTypeChange = useCallback((v: string) => updateParams({ subType: v, page: "1" }), [updateParams]);
   const handleCityChange    = useCallback((v: string) => updateParams({ city: v,    page: "1" }), [updateParams]);
+  const handleClearFilters  = useCallback(() => updateParams({ status: "", kycStatus: "", subType: "", city: "", datePreset: "", search: "", page: "1" }), [updateParams]);
 
   const handleSuspendConfirm = async (formData: SuspendPartnerPayload) => {
     if (!suspendTarget) return;
@@ -300,6 +301,7 @@ function PartnersPageContent() {
           city={city}
           onCityChange={handleCityChange}
           cities={cities}
+          onClearFilters={handleClearFilters}
           onExport={handleExport}
           isExporting={isExporting}
         />
