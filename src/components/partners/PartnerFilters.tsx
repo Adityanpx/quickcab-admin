@@ -24,7 +24,6 @@ const STATUS_OPTIONS = [
   { value: "PROFILE_COMPLETE", label: "KYC In Progress" },
   { value: "KYC_PENDING",      label: "KYC Submitted" },
   { value: "KYC_IN_PROGRESS",  label: "KYC In Review" },
-  { value: "KYC_REJECTED",     label: "KYC Rejected" },
   { value: "SUSPENDED",        label: "Suspended" },
   { value: "BLOCKED",          label: "Blocked" },
 ];
