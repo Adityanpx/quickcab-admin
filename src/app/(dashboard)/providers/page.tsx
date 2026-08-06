@@ -98,7 +98,7 @@ function ProvidersPageContent() {
 
   // ── Real global stat counts via 3 lightweight queries ───────────────────
   const { data: activeData }    = useQuery({ queryKey: ["providers-count", "ACTIVE"],      queryFn: () => providersApi.getAll({ status: "ACTIVE",      limit: 1 }), staleTime: 60_000 });
-  const { data: kycData }       = useQuery({ queryKey: ["providers-count", "KYC_PENDING"], queryFn: () => providersApi.getAll({ status: "KYC_PENDING", limit: 1 }), staleTime: 60_000 });
+  const { data: kycData }       = useQuery({ queryKey: ["providers-count", "KYC_PENDING"], queryFn: () => providersApi.getAll({ kycStatus: "PENDING", limit: 1 }), staleTime: 60_000 });
   const { data: suspendedData } = useQuery({ queryKey: ["providers-count", "SUSPENDED"],   queryFn: () => providersApi.getAll({ status: "SUSPENDED",   limit: 1 }), staleTime: 60_000 });
 
   const activeTotal    = activeData?.pagination?.total    ?? 0;
@@ -267,7 +267,7 @@ function ProvidersPageContent() {
           value={kycTotal.toLocaleString("en-IN")}
           icon={<Clock size={16} />}
           accentColor={kycTotal > 5 ? "orange" : "purple"}
-          onClick={() => updateParams({ status: "KYC_PENDING", page: "1" })}
+          onClick={() => updateParams({ status: "", kycStatus: "PENDING", page: "1" })}
         />
         <StatCard
           index={3}

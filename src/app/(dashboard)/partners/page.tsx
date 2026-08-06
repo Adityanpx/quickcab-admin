@@ -93,7 +93,7 @@ function PartnersPageContent() {
 
   // ── Real global stat counts via 3 lightweight queries ───────────────────
   const { data: activeData }    = useQuery({ queryKey: ["partners-count", "ACTIVE"],      queryFn: () => partnersApi.getAll({ status: "ACTIVE",      limit: 1 }), staleTime: 60_000 });
-  const { data: kycData }       = useQuery({ queryKey: ["partners-count", "KYC_PENDING"], queryFn: () => partnersApi.getAll({ status: "KYC_PENDING", limit: 1 }), staleTime: 60_000 });
+  const { data: kycData }       = useQuery({ queryKey: ["partners-count", "KYC_PENDING"], queryFn: () => partnersApi.getAll({ kycStatus: "PENDING", limit: 1 }), staleTime: 60_000 });
   const { data: suspendedData } = useQuery({ queryKey: ["partners-count", "SUSPENDED"],   queryFn: () => partnersApi.getAll({ status: "SUSPENDED",   limit: 1 }), staleTime: 60_000 });
 
   const activeTotal    = activeData?.pagination?.total    ?? 0;
@@ -269,7 +269,7 @@ function PartnersPageContent() {
           value={kycTotal.toLocaleString("en-IN")}
           icon={<Clock size={16} />}
           accentColor={kycTotal > 5 ? "orange" : "purple"}
-          onClick={() => updateParams({ status: "KYC_PENDING", page: "1" })}
+          onClick={() => updateParams({ status: "", kycStatus: "PENDING", page: "1" })}
         />
         <StatCard
           index={3}
