@@ -35,12 +35,12 @@ export function StatCards({ stats }: StatCardsProps) {
       <StatCard
         index={2}
         label="Pending KYC"
-        value={stats.partners.pendingKyc}
+        value={stats.kyc.pendingTotal}
         subtext="Needs attention"
-        trend={stats.partners.pendingKyc > 10 ? "down" : "neutral"}
-        trendValue={stats.partners.pendingKyc > 10 ? "High queue" : undefined}
+        trend={stats.kyc.pendingTotal > 10 ? "down" : "neutral"}
+        trendValue={stats.kyc.pendingTotal > 10 ? "High queue" : undefined}
         icon={<FileCheck size={16} />}
-        accentColor={stats.partners.pendingKyc > 10 ? "orange" : "purple"}
+        accentColor={stats.kyc.pendingTotal > 10 ? "orange" : "purple"}
       />
       <StatCard
         index={3}
