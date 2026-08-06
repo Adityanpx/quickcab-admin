@@ -20,6 +20,12 @@ const CONFIG_METADATA: Record<
     type: "number",
     unit: "coins",
   },
+  coins_per_referral: {
+    label: "Coins Per Referral",
+    description: "Coins credited to the referrer when their referred user's KYC is approved",
+    type: "number",
+    unit: "coins",
+  },
   coin_value_inr: {
     label: "Coin Value (INR)",
     description: "How much 1 coin is worth in Indian Rupees",
@@ -120,7 +126,7 @@ export function SystemConfigForm({ configs, onSave }: SystemConfigFormProps) {
   // Group configs
   const grouped = {
     system: ["maintenance_mode"],
-    wallet: ["coins_per_lead", "coin_value_inr", "min_withdrawal_coins", "max_withdrawal_coins"],
+    wallet: ["coins_per_lead", "coin_value_inr", "coins_per_referral", "min_withdrawal_coins", "max_withdrawal_coins"],
     bookings: ["booking_expiry_hours", "rating_window_hours"],
     subscriptions: ["subscription_partner_enabled", "subscription_provider_enabled"],
   };
