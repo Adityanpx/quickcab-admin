@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { Button } from "@/components/ui/Button";
+import { useAuthStore } from "@/stores/authStore";
 
 interface PartnerFiltersProps {
   search: string;
@@ -58,6 +59,7 @@ export function PartnerFilters({
   onExport,
   isExporting,
 }: PartnerFiltersProps) {
+  const isSubAdmin = useAuthStore((s) => s.admin?.role === "SUBADMIN");
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
       {/* Search */}
@@ -114,16 +116,18 @@ export function PartnerFilters({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Export CSV */}
-      <Button
-        variant="outline"
-        size="sm"
-        icon={<Download size={14} />}
-        onClick={onExport}
-        loading={isExporting}
-      >
-        Export CSV
-      </Button>
+      {/* Export CSV — hidden for SUBADMIN */}
+      {!isSubAdmin && (
+        <Button
+          variant="outline"
+          size="sm"
+          icon={<Download size={14} />}
+          onClick={onExport}
+          loading={isExporting}
+        >
+          Export CSV
+        </Button>
+      )}
     </div>
   );
 }

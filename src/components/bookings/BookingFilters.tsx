@@ -5,6 +5,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/authStore";
 
 interface BookingFiltersProps {
   search: string;
@@ -51,6 +52,7 @@ export function BookingFilters({
   onExport,
   isExporting,
 }: BookingFiltersProps) {
+  const isSubAdmin = useAuthStore((s) => s.admin?.role === "SUBADMIN");
   return (
     <div className="space-y-3">
       {/* Row 1: Search + Status + Vehicle + Export */}
@@ -76,15 +78,18 @@ export function BookingFilters({
           className="sm:w-44"
         />
         <div className="flex-1" />
-        <Button
-          variant="outline"
-          size="sm"
-          icon={<Download size={14} />}
-          onClick={onExport}
-          loading={isExporting}
-        >
-          Export CSV
-        </Button>
+        {/* Export CSV — hidden for SUBADMIN */}
+        {!isSubAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Download size={14} />}
+            onClick={onExport}
+            loading={isExporting}
+          >
+            Export CSV
+          </Button>
+        )}
       </div>
 
       {/* Row 2: Date range */}
