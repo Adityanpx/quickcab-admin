@@ -32,6 +32,13 @@ function startOfToday(): Date {
   return d;
 }
 
+// Backend stores naive local (IST) timestamps, so date-range params must be
+// sent as plain local-time strings — not toISOString(), which shifts by the
+// UTC offset and silently misses rows.
+function toLocalTimestamp(datetimeLocalValue: string): string {
+  return datetimeLocalValue.length === 16 ? `${datetimeLocalValue}:00` : datetimeLocalValue;
+}
+
 const dateTimeInputClass = cn(
   "px-3 py-2 text-sm rounded-xl border bg-white dark:bg-dark-surface",
   "border-light-border dark:border-dark-border text-light-text dark:text-dark-text",
@@ -43,16 +50,16 @@ export default function KycApprovalTrackerPage() {
   const [fromInput, setFromInput] = useState(() => toDatetimeLocalValue(startOfToday()));
   const [toInput, setToInput] = useState(() => toDatetimeLocalValue(new Date()));
   const [appliedRange, setAppliedRange] = useState(() => ({
-    from: startOfToday().toISOString(),
-    to: new Date().toISOString(),
+    from: toLocalTimestamp(toDatetimeLocalValue(startOfToday())),
+    to: toLocalTimestamp(toDatetimeLocalValue(new Date())),
   }));
 
   const { data, isLoading, isFetching } = useKycApprovalStats(appliedRange);
 
   const handleApply = () => {
     setAppliedRange({
-      from: new Date(fromInput).toISOString(),
-      to: new Date(toInput).toISOString(),
+      from: toLocalTimestamp(fromInput),
+      to: toLocalTimestamp(toInput),
     });
   };
 
