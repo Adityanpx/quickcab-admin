@@ -5,6 +5,7 @@ export const ROUTE_PERMISSIONS: Record<string, AdminRole[]> = {
   "/partners": ["SUPERADMIN", "SUBADMIN"],
   "/providers": ["SUPERADMIN", "SUBADMIN"],
   "/kyc": ["SUPERADMIN", "SUBADMIN"],
+  "/kyc-approval-tracker": ["SUPERADMIN", "SUBADMIN"],
   "/bookings": ["SUPERADMIN", "SUBADMIN"],
   "/role-upgrades": ["SUPERADMIN"],
   "/incomplete-signups": ["SUPERADMIN"],

@@ -16,6 +16,7 @@ import {
   Share2,
   ArrowUpCircle,
   UserX,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { AdminRole } from "@/lib/permissions";
@@ -53,6 +54,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "KYC Queue",
     href: "/kyc",
     icon: FileCheck,
+  },
+  {
+    label: "KYC Approval Tracker",
+    href: "/kyc-approval-tracker",
+    icon: ClipboardCheck,
+    roles: ["SUPERADMIN", "SUBADMIN"],
   },
   {
     label: "Upgrades To Partner",

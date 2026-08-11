@@ -8,6 +8,18 @@ import type {
   RoleUpgradeFilters,
 } from "@/types/partner";
 
+export interface KycApprovalStatItem {
+  adminId: string;
+  adminName: string;
+  role: string;
+  approvedCount: number;
+}
+
+export interface KycApprovalStatsResponse {
+  admins: KycApprovalStatItem[];
+  totalApproved: number;
+}
+
 export interface KycRejectPayload {
   adminNote?: string;
   aadhaarFrontStatus?: "APPROVED" | "REJECTED";
@@ -139,6 +151,17 @@ export const partnersApi = {
       }
       throw err;
     }
+  },
+
+  getKycApprovalStats: async (params: {
+    from: string;
+    to: string;
+  }): Promise<KycApprovalStatsResponse> => {
+    const response = await apiClient.get<ApiResponse<KycApprovalStatsResponse>>(
+      "/admin/kyc/approval-stats",
+      { params }
+    );
+    return response.data.data;
   },
 
   getRoleUpgradeRequests: async (

@@ -36,6 +36,14 @@ export function useKycQueue(params = {}) {
   });
 }
 
+export function useKycApprovalStats(params: { from: string; to: string }) {
+  return useQuery({
+    queryKey: ["kyc", "approval-stats", params],
+    queryFn: () => partnersApi.getKycApprovalStats(params),
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useSuspendPartner() {
   const qc = useQueryClient();
   return useMutation({
