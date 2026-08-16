@@ -733,6 +733,16 @@ export default function PartnerDetailPage() {
                     docs={kycDocs}
                     userId={partner.id}
                     aadhaarNumber={kycRecord.aadhaarNumber}
+                    subjectName={partner.name}
+                    subjectMobile={partner.mobile}
+                    subjectDob={kycRecord.dateOfBirth ? formatDate(kycRecord.dateOfBirth) : null}
+                    subjectRole={
+                      partner.partnerProfile?.subType === "VEHICLE_OWNER"
+                        ? "Vehicle Owner"
+                        : partner.partnerProfile?.subType === "VENDOR"
+                        ? "Vendor"
+                        : null
+                    }
                     onApproveDoc={handleApproveDoc}
                     onRejectDoc={handleRejectDoc}
                     onUploadDoc={handleUploadDoc}

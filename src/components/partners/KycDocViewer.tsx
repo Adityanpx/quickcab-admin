@@ -96,6 +96,10 @@ interface KycDocViewerProps {
   docs: DocItem[];
   userId?: string;
   aadhaarNumber?: string | null;
+  subjectName?: string | null;
+  subjectMobile?: string | null;
+  subjectDob?: string | null;   // already formatted for display by the caller
+  subjectRole?: string | null;  // already formatted for display by the caller, e.g. "Vehicle Owner"
   onApproveDoc?: (fieldKey: string) => void;
   onRejectDoc?: (fieldKey: string, reason: string) => void;
   onUploadDoc?: (fieldKey: string, file: File) => void;
@@ -382,6 +386,10 @@ export function KycDocViewer({
   docs,
   userId,
   aadhaarNumber,
+  subjectName,
+  subjectMobile,
+  subjectDob,
+  subjectRole,
   onApproveDoc,
   onRejectDoc,
   onUploadDoc,
@@ -576,12 +584,6 @@ export function KycDocViewer({
                 <span className="text-white/40 text-[12px] font-mono whitespace-nowrap">
                   {lightboxIndex + 1} / {viewableDocs.length}
                 </span>
-                {(currentDoc.fieldKey === "aadhaarFront" || currentDoc.fieldKey === "aadhaarBack") &&
-                  formatAadhaarNumber(aadhaarNumber) && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 text-white text-[13px] font-mono font-semibold tracking-wide whitespace-nowrap">
-                      Aadhaar: {formatAadhaarNumber(aadhaarNumber)}
-                    </span>
-                  )}
                 {currentDoc.status === "APPROVED" && (
                   <span className="flex items-center gap-1 text-[11px] font-bold text-brand-green whitespace-nowrap">
                     <CheckCircle size={12} /> APPROVED
@@ -681,6 +683,45 @@ export function KycDocViewer({
               onPointerLeave={handlePointerUp}
               onWheel={(e) => applyZoom(zoom + (e.deltaY < 0 ? 0.1 : -0.1))}
             >
+              {(currentDoc.fieldKey === "aadhaarFront" || currentDoc.fieldKey === "aadhaarBack") && (
+                <div className="absolute top-4 left-4 z-20 rounded-xl bg-black/55 backdrop-blur-md border border-white/10 px-4 py-3 pointer-events-none max-w-[260px]">
+                  <p className="text-white/50 text-[10px] font-semibold tracking-wide uppercase mb-2">
+                    Verify against document
+                  </p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/40 text-[11px] w-16 shrink-0">Name</span>
+                      <span className="text-white text-[13px] font-medium truncate">
+                        {subjectName || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/40 text-[11px] w-16 shrink-0">Mobile</span>
+                      <span className="text-white text-[13px] font-mono">
+                        {subjectMobile || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/40 text-[11px] w-16 shrink-0">DOB</span>
+                      <span className="text-white text-[13px]">
+                        {subjectDob || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/40 text-[11px] w-16 shrink-0">Aadhaar</span>
+                      <span className="text-white text-[13px] font-mono font-semibold tracking-wide">
+                        {formatAadhaarNumber(aadhaarNumber) || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/40 text-[11px] w-16 shrink-0">Role</span>
+                      <span className="text-white text-[13px]">
+                        {subjectRole || "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="w-full h-full flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

@@ -777,6 +777,10 @@ export default function ProviderDetailPage() {
                     docs={kycDocs}
                     userId={provider.id}
                     aadhaarNumber={kycRecord.aadhaarNumber}
+                    subjectName={provider.name}
+                    subjectMobile={provider.mobile}
+                    subjectDob={kycRecord.dateOfBirth ? formatDate(kycRecord.dateOfBirth) : null}
+                    subjectRole={category ? CATEGORY_LABELS[category] : null}
                     onApproveDoc={handleApproveDoc}
                     onRejectDoc={handleRejectDoc}
                     onUploadDoc={handleUploadDoc}
