@@ -684,38 +684,38 @@ export function KycDocViewer({
               onWheel={(e) => applyZoom(zoom + (e.deltaY < 0 ? 0.1 : -0.1))}
             >
               {(currentDoc.fieldKey === "aadhaarFront" || currentDoc.fieldKey === "aadhaarBack") && (
-                <div className="absolute top-4 left-4 z-20 rounded-xl bg-black/55 backdrop-blur-md border border-white/10 px-4 py-3 pointer-events-none max-w-[260px]">
-                  <p className="text-white/50 text-[10px] font-semibold tracking-wide uppercase mb-2">
+                <div className="absolute top-4 left-4 z-20 rounded-xl bg-black/85 backdrop-blur-md border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.6)] px-5 py-4 pointer-events-none max-w-[300px]">
+                  <p className="text-white/60 text-[11px] font-semibold tracking-wide uppercase mb-3">
                     Verify against document
                   </p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-white/40 text-[11px] w-16 shrink-0">Name</span>
-                      <span className="text-white text-[13px] font-medium truncate">
+                  <div className="space-y-2.5">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-white/55 text-[13px] w-16 shrink-0">Name</span>
+                      <span className="text-white/95 text-[15px] font-medium truncate">
                         {subjectName || "—"}
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-white/40 text-[11px] w-16 shrink-0">Mobile</span>
-                      <span className="text-white text-[13px] font-mono">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-white/55 text-[13px] w-16 shrink-0">Mobile</span>
+                      <span className="text-white/95 text-[15px] font-mono">
                         {subjectMobile || "—"}
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-white/40 text-[11px] w-16 shrink-0">DOB</span>
-                      <span className="text-white text-[13px]">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-white/55 text-[13px] w-16 shrink-0">DOB</span>
+                      <span className="text-white/95 text-[15px]">
                         {subjectDob || "—"}
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-white/40 text-[11px] w-16 shrink-0">Aadhaar</span>
-                      <span className="text-white text-[13px] font-mono font-semibold tracking-wide">
+                    <div className="flex items-baseline gap-3 pt-1 mt-1 border-t border-white/10">
+                      <span className="text-white/55 text-[13px] w-16 shrink-0">Aadhaar</span>
+                      <span className="text-white text-[17px] font-mono font-bold tracking-wider">
                         {formatAadhaarNumber(aadhaarNumber) || "—"}
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-white/40 text-[11px] w-16 shrink-0">Role</span>
-                      <span className="text-white text-[13px]">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-white/55 text-[13px] w-16 shrink-0">Role</span>
+                      <span className="text-white/95 text-[15px]">
                         {subjectRole || "—"}
                       </span>
                     </div>
