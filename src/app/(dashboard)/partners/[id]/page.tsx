@@ -732,6 +732,7 @@ export default function PartnerDetailPage() {
                   <KycDocViewer
                     docs={kycDocs}
                     userId={partner.id}
+                    aadhaarNumber={kycRecord.aadhaarNumber}
                     onApproveDoc={handleApproveDoc}
                     onRejectDoc={handleRejectDoc}
                     onUploadDoc={handleUploadDoc}

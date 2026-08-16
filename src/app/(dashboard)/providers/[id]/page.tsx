@@ -776,6 +776,7 @@ export default function ProviderDetailPage() {
                   <KycDocViewer
                     docs={kycDocs}
                     userId={provider.id}
+                    aadhaarNumber={kycRecord.aadhaarNumber}
                     onApproveDoc={handleApproveDoc}
                     onRejectDoc={handleRejectDoc}
                     onUploadDoc={handleUploadDoc}

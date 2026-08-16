@@ -95,6 +95,7 @@ export interface DocItem {
 interface KycDocViewerProps {
   docs: DocItem[];
   userId?: string;
+  aadhaarNumber?: string | null;
   onApproveDoc?: (fieldKey: string) => void;
   onRejectDoc?: (fieldKey: string, reason: string) => void;
   onUploadDoc?: (fieldKey: string, file: File) => void;
@@ -366,10 +367,21 @@ const QUICK_REJECT_REASONS = [
   "Image is cropped / incomplete",
 ];
 
+// Formats a raw 12-digit Aadhaar number into 3 groups of 4 for display,
+// e.g. "907692483828" -> "9076 9248 3828". Returns null if the input
+// isn't a clean 12-digit number, so callers can safely skip rendering.
+function formatAadhaarNumber(raw?: string | null): string | null {
+  if (!raw) return null;
+  const digitsOnly = raw.replace(/\D/g, "");
+  if (digitsOnly.length !== 12) return raw; // fall back to raw value if unexpected format
+  return `${digitsOnly.slice(0, 4)} ${digitsOnly.slice(4, 8)} ${digitsOnly.slice(8, 12)}`;
+}
+
 // ─── Main KycDocViewer ────────────────────────────────────
 export function KycDocViewer({
   docs,
   userId,
+  aadhaarNumber,
   onApproveDoc,
   onRejectDoc,
   onUploadDoc,
@@ -564,6 +576,12 @@ export function KycDocViewer({
                 <span className="text-white/40 text-[12px] font-mono whitespace-nowrap">
                   {lightboxIndex + 1} / {viewableDocs.length}
                 </span>
+                {(currentDoc.fieldKey === "aadhaarFront" || currentDoc.fieldKey === "aadhaarBack") &&
+                  formatAadhaarNumber(aadhaarNumber) && (
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 text-white text-[13px] font-mono font-semibold tracking-wide whitespace-nowrap">
+                      Aadhaar: {formatAadhaarNumber(aadhaarNumber)}
+                    </span>
+                  )}
                 {currentDoc.status === "APPROVED" && (
                   <span className="flex items-center gap-1 text-[11px] font-bold text-brand-green whitespace-nowrap">
                     <CheckCircle size={12} /> APPROVED
