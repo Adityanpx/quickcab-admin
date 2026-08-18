@@ -109,7 +109,7 @@ export function ActiveUsersTrendChart() {
         {isLoading ? (
           <Skeleton className="h-[220px] w-full" rounded="lg" />
         ) : (
-          <AreaChart data={chartData} height={220} color="#16A34A" />
+          <AreaChart data={chartData} height={220} color="#16A34A" valueLabel="active users" />
         )}
       </div>
     </div>

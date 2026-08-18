@@ -15,27 +15,29 @@ interface AreaChartProps {
   data: { label: string; value: number }[];
   height?: number;
   color?: string;
+  valueLabel?: string;
 }
 
 interface CustomTooltipProps {
   active?: boolean;
   payload?: { value: number }[];
   label?: string;
+  valueLabel?: string;
 }
 
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, valueLabel = "bookings" }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-xl px-3 py-2 shadow-lg text-sm">
       <p className="text-light-text-2 dark:text-dark-text-2 text-[12px] mb-0.5">{label}</p>
       <p className="font-semibold text-light-text dark:text-dark-text">
-        {payload[0].value} bookings
+        {payload[0].value} {valueLabel}
       </p>
     </div>
   );
 }
 
-export function AreaChart({ data, height = 220, color = "#5E5CE6" }: AreaChartProps) {
+export function AreaChart({ data, height = 220, color = "#5E5CE6", valueLabel }: AreaChartProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
@@ -69,7 +71,7 @@ export function AreaChart({ data, height = 220, color = "#5E5CE6" }: AreaChartPr
           allowDecimals={false}
         />
         <Tooltip
-          content={<CustomTooltip />}
+          content={<CustomTooltip valueLabel={valueLabel} />}
           cursor={{ stroke: color, strokeWidth: 1, strokeDasharray: "4 4" }}
         />
         <Area
