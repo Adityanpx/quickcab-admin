@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useDashboardStats } from "@/lib/hooks/useDashboard";
 import { StatCards } from "@/components/dashboard/StatCards";
 import { LeadActivityChart } from "@/components/dashboard/LeadActivityChart";
+import { ActiveUsersTrendChart } from "@/components/dashboard/ActiveUsersTrendChart";
 import { PartnerDistribution } from "@/components/dashboard/PartnerDistribution";
 import { KycQueue } from "@/components/dashboard/KycQueue";
 import { RecentWithdrawals } from "@/components/dashboard/RecentWithdrawals";
@@ -127,6 +128,11 @@ export default function DashboardPage() {
         <div>
           <PartnerDistribution stats={stats} />
         </div>
+      </motion.div>
+
+      {/* ── Active Users Trend ──────────────────────── */}
+      <motion.div variants={sectionVariants}>
+        <ActiveUsersTrendChart />
       </motion.div>
 
       {/* ── Tables Row ──────────────────────────────── */}

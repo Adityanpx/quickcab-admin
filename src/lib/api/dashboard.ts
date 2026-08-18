@@ -42,6 +42,18 @@ export interface DashboardStats {
   onlineUsersCount: number;
 }
 
+export interface ActiveUsersDailyPoint {
+  date: string;
+  activeCount: number;
+}
+
+export interface ActiveUsersResponse {
+  todayCount: number;
+  from: string;
+  to: string;
+  results: ActiveUsersDailyPoint[];
+}
+
 // ─── SubAdmin Types ───────────────────────────────────────────────────────────
 
 export interface SubAdminLog {
@@ -95,6 +107,16 @@ export const dashboardApi = {
   getStats: async (): Promise<DashboardStats> => {
     const response = await apiClient.get<ApiResponse<DashboardStats>>(
       "/admin/dashboard/stats"
+    );
+    return response.data.data;
+  },
+
+  getActiveUsers: async (
+    params: { from?: string; to?: string } = {}
+  ): Promise<ActiveUsersResponse> => {
+    const response = await apiClient.get<ApiResponse<ActiveUsersResponse>>(
+      "/admin/dashboard/active-users",
+      { params }
     );
     return response.data.data;
   },

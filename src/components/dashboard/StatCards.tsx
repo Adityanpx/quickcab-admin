@@ -1,12 +1,31 @@
 "use client";
 
-import { Users, BookOpen, FileCheck, Wallet } from "lucide-react";
+import { Users, BookOpen, FileCheck, Wallet, Activity } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
+import { StatCardSkeleton } from "@/components/ui/SkeletonLoader";
 import type { DashboardStats } from "@/lib/api/dashboard";
+import { useActiveUsersToday } from "@/lib/hooks/useDashboard";
 import { formatCurrency } from "@/lib/utils";
 
 interface StatCardsProps {
   stats: DashboardStats;
+}
+
+function ActiveUsersTodayCard({ index }: { index: number }) {
+  const { data, isLoading } = useActiveUsersToday();
+
+  if (isLoading) return <StatCardSkeleton />;
+
+  return (
+    <StatCard
+      index={index}
+      label="Active Users Today"
+      value={(data?.todayCount ?? 0).toLocaleString("en-IN")}
+      subtext="Unique active users"
+      icon={<Activity size={16} />}
+      accentColor="green"
+    />
+  );
 }
 
 export function StatCards({ stats }: StatCardsProps) {
@@ -51,6 +70,7 @@ export function StatCards({ stats }: StatCardsProps) {
         icon={<Wallet size={16} />}
         accentColor="green"
       />
+      <ActiveUsersTodayCard index={4} />
     </div>
   );
 }

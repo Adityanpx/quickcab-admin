@@ -12,6 +12,23 @@ export function useDashboardStats() {
   });
 }
 
+export function useActiveUsersToday() {
+  return useQuery({
+    queryKey: ["dashboard", "active-users", "today"],
+    queryFn: () => dashboardApi.getActiveUsers(),
+    staleTime: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+}
+
+export function useActiveUsersTrend(params: { from: string; to: string }) {
+  return useQuery({
+    queryKey: ["dashboard", "active-users", "trend", params],
+    queryFn: () => dashboardApi.getActiveUsers(params),
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useAdminNotifications() {
   return useQuery({
     queryKey: ["admin", "notifications"],
