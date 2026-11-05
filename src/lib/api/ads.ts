@@ -1,6 +1,17 @@
 import apiClient from "./client";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 
+export type AdPlacement = "ALL" | "FEED" | "NEARBY" | "WALLET";
+
+export const AD_PLACEMENT_LABELS: Record<AdPlacement, string> = {
+  ALL: "All screens",
+  FEED: "Home feed",
+  NEARBY: "Nearby",
+  WALLET: "Wallet",
+};
+
+export const AD_PLACEMENTS: AdPlacement[] = ["ALL", "FEED", "NEARBY", "WALLET"];
+
 export interface Ad {
   id: string;
   name: string;
@@ -10,6 +21,7 @@ export interface Ad {
   redirectUrl: string;
   isActive: boolean;
   order: number;
+  placement: AdPlacement;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -21,6 +33,7 @@ export interface CreateAdPayload {
   description?: string;
   imageUrl: string;
   redirectUrl: string;
+  placement?: AdPlacement;
 }
 
 export interface UpdateAdPayload {
@@ -30,6 +43,7 @@ export interface UpdateAdPayload {
   imageUrl?: string;
   redirectUrl?: string;
   isActive?: boolean;
+  placement?: AdPlacement;
 }
 
 export const adsApi = {

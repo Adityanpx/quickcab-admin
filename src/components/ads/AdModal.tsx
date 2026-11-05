@@ -8,7 +8,7 @@ import { Upload, Loader2, X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import { adsApi } from "@/lib/api/ads";
+import { adsApi, AD_PLACEMENTS, AD_PLACEMENT_LABELS } from "@/lib/api/ads";
 import type { Ad, CreateAdPayload } from "@/lib/api/ads";
 
 const adSchema = z.object({
@@ -16,6 +16,7 @@ const adSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   redirectUrl: z.string().url("Must be a valid URL starting with http:// or https://"),
+  placement: z.enum(["ALL", "FEED", "NEARBY", "WALLET"]),
 });
 
 type AdFormData = z.infer<typeof adSchema>;
@@ -53,10 +54,11 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
         title: editAd.title ?? "",
         description: editAd.description ?? "",
         redirectUrl: editAd.redirectUrl,
+        placement: editAd.placement ?? "ALL",
       });
       setImageUrl(editAd.imageUrl);
     } else {
-      reset({ name: "", title: "", description: "", redirectUrl: "" });
+      reset({ name: "", title: "", description: "", redirectUrl: "", placement: "ALL" });
       setImageUrl("");
     }
     setUploadError(null);
@@ -110,6 +112,7 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
       description: data.description || undefined,
       imageUrl,
       redirectUrl: data.redirectUrl,
+      placement: data.placement,
     };
     await onSubmit(payload);
   };
@@ -157,6 +160,23 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
           )}
         </div>
 
+        {/* Placement */}
+        <div>
+          <label className="block text-sm font-medium text-light-text dark:text-dark-text mb-1.5">
+            Show on <span className="text-brand-red">*</span>
+          </label>
+          <select {...register("placement")} className="input-base">
+            {AD_PLACEMENTS.map((p) => (
+              <option key={p} value={p}>
+                {AD_PLACEMENT_LABELS[p]}
+              </option>
+            ))}
+          </select>
+          <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1">
+            &quot;All screens&quot; shows this ad everywhere ads appear in the app
+          </p>
+        </div>
+
         {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium text-light-text dark:text-dark-text mb-1.5">
@@ -185,7 +205,7 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
                 Click to upload image
               </p>
               <p className="text-[11px] text-light-text-3 dark:text-dark-text-3">
-                JPG, PNG, WebP, GIF supported
+                JPG, PNG, WebP supported · Recommended 1200 × 675 (16:9), under 300 KB
               </p>
             </div>
           )}

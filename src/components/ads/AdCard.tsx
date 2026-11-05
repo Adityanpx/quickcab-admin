@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import type { Ad } from "@/lib/api/ads";
+import { AD_PLACEMENT_LABELS } from "@/lib/api/ads";
 import { useToggleAd } from "@/lib/hooks/useAds";
 import toast from "react-hot-toast";
 
@@ -67,6 +68,7 @@ export function AdCard({ ad, index, onEdit, onDelete }: AdCardProps) {
         </h3>
         <div className="flex items-center gap-1.5 shrink-0">
           <Badge variant="purple">#{ad.order}</Badge>
+          <Badge variant="blue">{AD_PLACEMENT_LABELS[ad.placement ?? "ALL"]}</Badge>
           <Badge variant={ad.isActive ? "active" : "gray"}>
             {ad.isActive ? "Live" : "Inactive"}
           </Badge>
