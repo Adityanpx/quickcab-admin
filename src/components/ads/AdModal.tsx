@@ -11,13 +11,46 @@ import { cn } from "@/lib/utils";
 import { adsApi, AD_PLACEMENTS, AD_PLACEMENT_LABELS } from "@/lib/api/ads";
 import type { Ad, CreateAdPayload } from "@/lib/api/ads";
 
-const adSchema = z.object({
-  name: z.string().min(2, "Internal name is required"),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  redirectUrl: z.string().url("Must be a valid URL starting with http:// or https://"),
-  placement: z.enum(["ALL", "FEED", "NEARBY", "WALLET"]),
-});
+const WA_LABEL_PICKS = ["Chat on WhatsApp", "Contact us", "Book a demo"];
+
+// Same rule as the server: 10-digit Indian mobile (6–9 start), optional 91/+91 prefix.
+function isValidWhatsapp(value: string): boolean {
+  const d = value.replace(/\D/g, "");
+  const local = d.length === 10 ? d : d.length === 12 && d.startsWith("91") ? d.slice(2) : "";
+  return /^[6-9]\d{9}$/.test(local);
+}
+
+const adSchema = z
+  .object({
+    name: z.string().min(2, "Internal name is required"),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    redirectUrl: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || /^https?:\/\/\S+$/.test(v), "Must start with http:// or https://"),
+    placement: z.enum(["ALL", "FEED", "NEARBY", "WALLET"]),
+    whatsappEnabled: z.boolean(),
+    whatsappNumber: z.string().trim(),
+    whatsappLabel: z.string().trim().max(20, "Max 20 characters"),
+    whatsappMessage: z.string().trim().max(300, "Max 300 characters"),
+  })
+  .superRefine((d, ctx) => {
+    if (d.whatsappEnabled && !isValidWhatsapp(d.whatsappNumber)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["whatsappNumber"],
+        message: "Enter a valid 10-digit Indian mobile number",
+      });
+    }
+    if (!d.redirectUrl && !d.whatsappEnabled) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["redirectUrl"],
+        message: "Add a Redirect URL or turn on the WhatsApp button",
+      });
+    }
+  });
 
 type AdFormData = z.infer<typeof adSchema>;
 
@@ -42,10 +75,13 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<AdFormData>({
     resolver: zodResolver(adSchema),
   });
+  const whatsappEnabled = watch("whatsappEnabled");
 
   useEffect(() => {
     if (editAd) {
@@ -53,12 +89,27 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
         name: editAd.name,
         title: editAd.title ?? "",
         description: editAd.description ?? "",
-        redirectUrl: editAd.redirectUrl,
+        redirectUrl: editAd.redirectUrl ?? "",
         placement: editAd.placement ?? "ALL",
+        whatsappEnabled: !!editAd.whatsappNumber,
+        // Stored as 91XXXXXXXXXX — show the 10-digit part
+        whatsappNumber: editAd.whatsappNumber ? editAd.whatsappNumber.replace(/^91/, "") : "",
+        whatsappLabel: editAd.whatsappLabel ?? "",
+        whatsappMessage: editAd.whatsappMessage ?? "",
       });
       setImageUrl(editAd.imageUrl);
     } else {
-      reset({ name: "", title: "", description: "", redirectUrl: "", placement: "ALL" });
+      reset({
+        name: "",
+        title: "",
+        description: "",
+        redirectUrl: "",
+        placement: "ALL",
+        whatsappEnabled: false,
+        whatsappNumber: "",
+        whatsappLabel: "",
+        whatsappMessage: "",
+      });
       setImageUrl("");
     }
     setUploadError(null);
@@ -111,8 +162,12 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
       title: data.title || undefined,
       description: data.description || undefined,
       imageUrl,
-      redirectUrl: data.redirectUrl,
+      redirectUrl: data.redirectUrl || null,
       placement: data.placement,
+      // WhatsApp off → send nulls so the server clears all three fields
+      whatsappNumber: data.whatsappEnabled ? data.whatsappNumber : null,
+      whatsappLabel: data.whatsappEnabled ? data.whatsappLabel || null : null,
+      whatsappMessage: data.whatsappEnabled ? data.whatsappMessage || null : null,
     };
     await onSubmit(payload);
   };
@@ -173,7 +228,8 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
             ))}
           </select>
           <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1">
-            &quot;All screens&quot; shows this ad everywhere ads appear in the app
+            &quot;All screens&quot; shows this ad everywhere ads appear in the app.
+            Home feed shows up to 3 ads at a time; extra ads rotate on each app open.
           </p>
         </div>
 
@@ -279,7 +335,10 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
         {/* Redirect URL */}
         <div>
           <label className="block text-sm font-medium text-light-text dark:text-dark-text mb-1.5">
-            Redirect URL <span className="text-brand-red">*</span>
+            Redirect URL{" "}
+            <span className="text-light-text-3 dark:text-dark-text-3 font-normal">
+              (optional if WhatsApp button is on)
+            </span>
           </label>
           <input
             {...register("redirectUrl")}
@@ -291,6 +350,102 @@ export function AdModal({ isOpen, onClose, onSubmit, editAd, loading }: AdModalP
             <p className="text-xs text-brand-red mt-1">
               {errors.redirectUrl.message}
             </p>
+          )}
+        </div>
+
+        {/* WhatsApp button (optional) */}
+        <div className="rounded-xl border border-light-border dark:border-dark-border p-3 space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              {...register("whatsappEnabled")}
+              className="h-4 w-4 accent-green-600"
+            />
+            <span className="text-sm font-medium text-light-text dark:text-dark-text">
+              Add WhatsApp button
+            </span>
+            <span className="text-sm text-light-text-3 dark:text-dark-text-3">(optional)</span>
+          </label>
+
+          {whatsappEnabled && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-light-text dark:text-dark-text mb-1.5">
+                  WhatsApp number <span className="text-brand-red">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-light-text-2 dark:text-dark-text-2">+91</span>
+                  <input
+                    {...register("whatsappNumber")}
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="9607024225"
+                    className={cn("input-base", errors.whatsappNumber && "border-brand-red")}
+                  />
+                </div>
+                {errors.whatsappNumber && (
+                  <p className="text-xs text-brand-red mt-1">{errors.whatsappNumber.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-light-text dark:text-dark-text mb-1.5">
+                  Button label{" "}
+                  <span className="text-light-text-3 dark:text-dark-text-3 font-normal">
+                    (optional, max 20)
+                  </span>
+                </label>
+                <input
+                  {...register("whatsappLabel")}
+                  type="text"
+                  maxLength={20}
+                  placeholder="Chat on WhatsApp"
+                  className={cn("input-base", errors.whatsappLabel && "border-brand-red")}
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {WA_LABEL_PICKS.map((pick) => (
+                    <button
+                      key={pick}
+                      type="button"
+                      onClick={() => setValue("whatsappLabel", pick, { shouldValidate: true })}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-medium border border-light-border dark:border-dark-border text-light-text-2 dark:text-dark-text-2 hover:border-green-600 hover:text-green-700 transition-colors"
+                    >
+                      {pick}
+                    </button>
+                  ))}
+                </div>
+                {errors.whatsappLabel ? (
+                  <p className="text-xs text-brand-red mt-1">{errors.whatsappLabel.message}</p>
+                ) : (
+                  <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1">
+                    Empty = &quot;Chat on WhatsApp&quot; (shown in the user&apos;s app language)
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-light-text dark:text-dark-text mb-1.5">
+                  Pre-filled message{" "}
+                  <span className="text-light-text-3 dark:text-dark-text-3 font-normal">
+                    (optional, max 300)
+                  </span>
+                </label>
+                <textarea
+                  {...register("whatsappMessage")}
+                  rows={2}
+                  maxLength={300}
+                  placeholder="Hi, I saw your ad on QuickCab."
+                  className={cn("input-base resize-none", errors.whatsappMessage && "border-brand-red")}
+                />
+                {errors.whatsappMessage ? (
+                  <p className="text-xs text-brand-red mt-1">{errors.whatsappMessage.message}</p>
+                ) : (
+                  <p className="text-[11px] text-light-text-3 dark:text-dark-text-3 mt-1">
+                    Empty = &quot;Hi, I saw your ad on QuickCab.&quot;
+                  </p>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

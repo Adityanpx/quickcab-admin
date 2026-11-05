@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Edit2, Trash2, ExternalLink, ImageIcon } from "lucide-react";
+import { Edit2, Trash2, ExternalLink, ImageIcon, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
@@ -89,17 +89,30 @@ export function AdCard({ ad, index, onEdit, onDelete }: AdCardProps) {
         </p>
       )}
 
-      {/* Redirect URL */}
-      <a
-        href={ad.redirectUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 mt-2 text-[11px] text-brand-purple hover:underline truncate"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ExternalLink size={10} className="shrink-0" />
-        <span className="truncate">{ad.redirectUrl}</span>
-      </a>
+      {/* Redirect URL (optional) */}
+      {ad.redirectUrl && (
+        <a
+          href={ad.redirectUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 mt-2 text-[11px] text-brand-purple hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExternalLink size={10} className="shrink-0" />
+          <span className="truncate">{ad.redirectUrl}</span>
+        </a>
+      )}
+
+      {/* WhatsApp button (optional) */}
+      {ad.whatsappNumber && (
+        <p className="flex items-center gap-1 mt-1 text-[11px] text-green-700 dark:text-green-400 truncate">
+          <MessageCircle size={10} className="shrink-0" />
+          <span className="truncate">
+            WhatsApp +91 {ad.whatsappNumber.replace(/^91/, "")} ·{" "}
+            {ad.whatsappLabel || "Chat on WhatsApp"}
+          </span>
+        </p>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-2 pt-3 mt-3 border-t border-light-border dark:border-dark-border">

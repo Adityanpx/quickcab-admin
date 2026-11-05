@@ -18,7 +18,10 @@ export interface Ad {
   title: string | null;
   description: string | null;
   imageUrl: string;
-  redirectUrl: string;
+  redirectUrl: string | null;
+  whatsappNumber: string | null; // e.g. "919607024225"
+  whatsappLabel: string | null;
+  whatsappMessage: string | null;
   isActive: boolean;
   order: number;
   placement: AdPlacement;
@@ -32,8 +35,11 @@ export interface CreateAdPayload {
   title?: string;
   description?: string;
   imageUrl: string;
-  redirectUrl: string;
+  redirectUrl?: string | null;
   placement?: AdPlacement;
+  whatsappNumber?: string | null;
+  whatsappLabel?: string | null;
+  whatsappMessage?: string | null;
 }
 
 export interface UpdateAdPayload {
@@ -41,9 +47,12 @@ export interface UpdateAdPayload {
   title?: string;
   description?: string;
   imageUrl?: string;
-  redirectUrl?: string;
+  redirectUrl?: string | null;
   isActive?: boolean;
   placement?: AdPlacement;
+  whatsappNumber?: string | null;
+  whatsappLabel?: string | null;
+  whatsappMessage?: string | null;
 }
 
 export const adsApi = {
